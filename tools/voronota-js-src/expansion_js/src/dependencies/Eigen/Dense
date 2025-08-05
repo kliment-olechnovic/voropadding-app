@@ -1,0 +1,15 @@
+#if defined(__clang__)
+#pragma clang system_header
+#endif
+
+#if defined(__GNUC__)
+#pragma GCC system_header
+#endif
+
+#include "Core"
+#include "LU"
+#include "Cholesky"
+#include "QR"
+#include "SVD"
+#include "Geometry"
+#include "Eigenvalues"
