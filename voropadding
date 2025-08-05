@@ -1,0 +1,306 @@
+#!/bin/bash
+
+function print_help_and_exit
+{
+cat >&2 << 'EOF'
+
+'voropadding' script pads (fills up the space around) the selected part of the input molecule (e.g. a ligand)
+and then calculates the total available volume and the total interface area of the padded part.
+
+Options:
+    --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
+    --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --max-padding                 number     maximum padding width, default is 7.0
+    --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
+    --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
+    --output-table-file           string     output table file path, default is '_stdout' to print to stdout
+    --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
+    --help | -h                              flag to display help message and exit
+
+Standard output:
+    space-separated table of values
+
+Examples:
+
+    voropadding --input "./complex.pdb"
+
+    voropadding --input "./complex.pdb" --selection '[-chain B]' 
+
+    voropadding --input "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
+
+    voropadding --input "./complex.pdb" --max-padding 8.0 --output-graphics "./padded.py"
+
+EOF
+exit 1
+}
+
+################################################################################
+
+export LANG=C
+export LC_ALL=C
+
+SCRIPTDIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+readonly ZEROARG=$0
+ALLARGS=("$@")
+
+if [ -z "$1" ]
+then
+	print_help_and_exit
+fi
+
+INPUT_FILE=""
+SELECTION="(not [-protein])"
+MAX_PADDING="7.0"
+RESTRICTION_CENTERS=""
+RESTRICTION_RADIUS="10.0"
+OUTPUT_TABLE_FILE="_stdout"
+OUTPUT_GRAPHICS_FILE=""
+HELP_MODE="false"
+
+while [[ $# > 0 ]]
+do
+	OPTION="$1"
+	OPTARG="$2"
+	shift
+	case $OPTION in
+	--input)
+		INPUT_FILE="$OPTARG"
+		shift
+		;;
+	--selection)
+		INPUT_LIGAND="$SELECTION"
+		shift
+		;;
+	--max-padding)
+		MAX_PADDING="$OPTARG"
+		shift
+		;;
+	--restriction-centers)
+		RESTRICTION_CENTERS="$OPTARG"
+		shift
+		;;
+	--restriction-radius)
+		RESTRICTION_RADIUS="$OPTARG"
+		shift
+		;;
+	--output-table-file)
+		OUTPUT_TABLE_FILE="$OPTARG"
+		shift
+		;;
+	--output-graphics-file)
+		OUTPUT_GRAPHICS_FILE="$OPTARG"
+		shift
+		;;
+	-h|--help)
+		HELP_MODE="true"
+		;;
+	*)
+		echo >&2 "Error: invalid command line option '$OPTION'"
+		exit 1
+		;;
+	esac
+done
+
+if [ "$HELP_MODE" == "true" ]
+then
+	print_help_and_exit
+fi
+
+if [ -z "$INPUT_FILE" ]
+then
+	echo >&2 "Error: no input file provided"
+	exit 1
+fi
+
+if [ ! -s "$INPUT_FILE" ]
+then
+	echo >&2 "Error: no input file '$INPUT_FILE'"
+	exit 1
+fi
+
+if [ -z "$SELECTION" ]
+then
+	echo >&2 "Error: no selection provided"
+	exit 1
+fi
+
+readonly TMPLDIR=$(mktemp -d)
+trap "rm -r $TMPLDIR" EXIT
+
+cat "$INPUT_FILE" > "${TMPLDIR}/rawinput"
+
+cd "$TMPLDIR"
+
+{
+cat << EOF
+var params={}
+params.selection='$SELECTION';
+params.restriction_selection='$RESTRICTION_CENTERS';
+EOF
+
+cat << 'EOF'
+voronota_setup_defaults("-no-load-voromqa-potentials", "-no-load-more-atom-types", "-no-load-mock-voromqa-potential");
+EOF
+
+if [[ "$INPUT_FILE" == *.cif ]] || [[ "$INPUT_FILE" == *.CIF ]]
+then
+cat << 'EOF'
+voronota_import_mmcif("-files", ["./rawinput"], "-include-heteroatoms");
+voronota_assert_full_success("Failed to input mmCIF file");
+EOF
+else
+cat << 'EOF'
+voronota_import("-file", "./rawinput", "-include-heteroatoms");
+voronota_assert_full_success("Failed to input PDB file");
+EOF
+fi
+
+cat << 'EOF'
+voronota_delete_tags_of_atoms("-tags", "het");
+voronota_export_atoms("-use", "("+params.selection+")", "-file", "ligand.pa");
+voronota_assert_full_success("Failed to write selection");
+voronota_export_atoms("-use", "(not ("+params.selection+"))", "-file", "receptor.pa");
+voronota_assert_full_success("Failed to write selection complementary");
+if(params.restriction_selection)
+{
+	voronota_export_atoms("-use", "("+params.restriction_selection+")", "-file", "restriction.pa");
+	voronota_assert_full_success("Failed to write restriction");
+}
+EOF
+} \
+| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults
+
+if [ ! -s "ligand.pa" ]
+then
+	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '${SELECTION}'"
+	exit 1
+fi
+
+if [ ! -s "receptor.pa" ]
+then
+	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '(nor (${SELECTION}))'"
+	exit 1
+fi
+
+if [ -n "$RESTRICTION_CENTERS" ] && [ ! -s "restriction.pa" ]
+then
+	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_FILE}' using selection '(nor (${RESTRICTION_CENTERS}))'"
+	exit 1
+fi
+
+{
+cat "receptor.pa" | awk '{print "receptor " $2 " " $3 " " $4 " " $5}'
+cat "ligand.pa" | awk '{print "ligand " $2 " " $3 " " $4 " " $5}'
+} \
+> "./inputballs"
+
+cat "./inputballs" \
+| ${SCRIPTDIR}/tools/voronota-lt \
+  --probe 0.001 \
+  --print-contacts-chain-level \
+  --print-cells-chain-level \
+2> /dev/null \
+> "./vdw_tessellation_summary"
+
+if [ ! -s "vdw_tessellation_summary" ]
+then
+	echo >&2 "Error: failed to calculate tessellation summary constained by the van der Waals surface"
+	exit 1
+fi
+
+cat "./inputballs" \
+| ${SCRIPTDIR}/tools/voronota-lt \
+  --probe 1.4 \
+  --print-contacts-chain-level \
+  --print-cells-chain-level \
+2> /dev/null \
+> "./basic_tessellation_summary"
+
+if [ ! -s "basic_tessellation_summary" ]
+then
+	echo >&2 "Error: failed to calculate basic tessellation summary constained by the SAS"
+	exit 1
+fi
+
+
+PARAMS_FOR_BOUNDING_SPHERES=""
+
+if [ -s "restriction.pa" ]
+then
+	cat "restriction.pa" | awk -v radius=${RESTRICTION_RADIUS} '{print $2 " " $3 " " $4 " " radius}' | tr '\n' ' ' > "./restriction_spheres"
+	PARAMS_FOR_BOUNDING_SPHERES="--bound-by-spheres $(cat './restriction_spheres')"
+fi
+
+cat "./inputballs" \
+| ${SCRIPTDIR}/tools/sihsolvexpand \
+  --chain-of-interest "ligand" \
+  --max-distance "$MAX_PADDING" ${PARAMS_FOR_BOUNDING_SPHERES} \
+2> /dev/null \
+> "./padded_complex"
+
+if [ ! -s "padded_complex" ]
+then
+	echo >&2 "Error: failed to generate a padded structure"
+	exit 1
+fi
+
+{
+if [ -n "$OUTPUT_GRAPHICS_FILE" ]
+then
+	GRAPHICSNAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py)"
+
+	cat "./padded_complex" \
+	| ${SCRIPTDIR}/tools/voronota-lt \
+	  --print-contacts-chain-level \
+	  --print-cells-chain-level \
+	  --graphics-output-file "./draw.py" \
+	  --graphics-restrict-representations balls wireframe faces \
+	  --graphics-restrict-chains ligand \
+	  --graphics-title "$GRAPHICSNAME" \
+	2> /dev/null
+else
+	cat "./padded_complex" \
+	| ${SCRIPTDIR}/tools/voronota-lt \
+	  --print-contacts-chain-level \
+	  --print-cells-chain-level \
+	2> /dev/null
+fi
+} \
+> "./tessellation_summary"
+
+if [ ! -s "tessellation_summary" ]
+then
+	echo >&2 "Error: failed to calculate tessellation summary"
+	exit 1
+fi
+
+if [ -n "$OUTPUT_GRAPHICS_FILE" ] && [ ! -s "draw.py" ]
+then
+	echo >&2 "Error: failed to generate graphics"
+	exit 1
+fi
+
+{
+cat "./vdw_tessellation_summary"
+cat "./basic_tessellation_summary"
+cat "./tessellation_summary"
+} \
+> "./final_result.txt"
+
+cd - &> /dev/null
+
+if [ -n "$OUTPUT_TABLE_FILE" ] && [ "$OUTPUT_TABLE_FILE" != "_stdout" ]
+then
+	mkdir -p "$(dirname ${OUTPUT_TABLE_FILE})"
+	cat "${TMPLDIR}/final_result.txt" > "$OUTPUT_TABLE_FILE"
+else
+	cat "${TMPLDIR}/final_result.txt"
+fi
+
+if [ -n "$OUTPUT_GRAPHICS_FILE" ]
+then
+	mkdir -p "$(dirname ${OUTPUT_GRAPHICS_FILE})"
+	cat "${TMPLDIR}/draw.py" > "$OUTPUT_GRAPHICS_FILE"
+fi
+
