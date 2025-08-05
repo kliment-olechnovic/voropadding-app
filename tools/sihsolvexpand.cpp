@@ -26,6 +26,7 @@ Options:
     --chain-of-interest                              string  *  name of the chain to expand from
     --max-distance                                   number     maximum expansion distance, default is 7.0
     --probe                                          number     probe radius, default is 1.4
+    --inflate-expanded-set-of-balls                  number     value to add to the radii of the balls in the expanded set, default is 0.7
     --bound-by-spheres                               numbers    quadruples of numbers (x, y, z, r) that define bounding spheres
     --sih-depth                                      number     subdivided icosahedron depth, default is 2)";
 
@@ -70,6 +71,7 @@ public:
 	unsigned int max_number_of_processors;
 	voronotalt::Float max_expansion_distance;
 	voronotalt::Float expansion_probe;
+	voronotalt::Float radii_inflation;
 	unsigned int sih_depth;
 	bool pdb_or_mmcif_heteroatoms;
 	bool pdb_or_mmcif_hydrogens;
@@ -84,6 +86,7 @@ public:
 		max_number_of_processors(voronotalt::openmp_enabled() ? 2 : 1),
 		max_expansion_distance(7.0),
 		expansion_probe(1.4),
+		radii_inflation(0.7),
 		sih_depth(2),
 		pdb_or_mmcif_heteroatoms(true),
 		pdb_or_mmcif_hydrogens(false),
@@ -131,6 +134,14 @@ public:
 					if(!(expansion_probe>=0.0 && expansion_probe<=30.0))
 					{
 						error_log_for_options_parsing << "Error: invalid command line argument for the rolling probe radius, must be a value from 0.0 to 30.0.\n";
+					}
+				}
+				else if(opt.name=="inflate-expanded-set-of-balls" && opt.args_doubles.size()==1)
+				{
+					radii_inflation=static_cast<voronotalt::Float>(opt.args_doubles.front());
+					if(!(radii_inflation>=0.0 && radii_inflation<=3.0))
+					{
+						error_log_for_options_parsing << "Error: invalid command line argument for inflating of the expanded set of balls, must be a value from 0.0 to 3.0.\n";
 					}
 				}
 				else if(opt.name=="bound-by-spheres" && opt.args_doubles.size()>=4 && opt.args_doubles.size()%4==0)
@@ -388,21 +399,7 @@ int main(const int argc, const char** argv)
 	{
 		for(std::size_t i=number_of_first_spheres;i<all_input_spheres.size();i++)
 		{
-			all_input_spheres[i].r+=(app_params.expansion_probe*0.5);
-		}
-
-		voronotalt::RadicalTessellation::Result result;
-
-		voronotalt::RadicalTessellation::construct_full_tessellation(all_input_spheres, result);
-
-		std::clog << "Final stage tessellation summary:" << std::endl;
-		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_basic(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
-		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_about_cells(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
-
-		if(result.cells_summaries.size()!=all_input_spheres.size())
-		{
-			std::cerr << "Error: failed to summarize cells in the final stage\n";
-			return 1;
+			all_input_spheres[i].r+=app_params.radii_inflation;
 		}
 
 		for(std::size_t i=0;i<all_input_spheres.size();i++)
