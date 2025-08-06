@@ -10,11 +10,12 @@ and then calculates the total available volume and the total interface area of t
 Options:
     --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
-    --max-padding                 number     maximum number of padding layers, default is 2
+    --max-padding                 number     maximum number of padding layers, default is 3
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
     --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
+    --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -51,11 +52,12 @@ fi
 
 INPUT_FILE=""
 SELECTION="(not [-protein])"
-MAX_PADDING="2"
+MAX_PADDING="3"
 RESTRICTION_CENTERS=""
 RESTRICTION_RADIUS="10.0"
 OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
+GRAPHICS_MODE="basic"
 HELP_MODE="false"
 
 while [[ $# > 0 ]]
@@ -90,6 +92,10 @@ do
 		;;
 	--output-graphics-file)
 		OUTPUT_GRAPHICS_FILE="$OPTARG"
+		shift
+		;;
+	--graphics-mode)
+		GRAPHICS_MODE="$OPTARG"
 		shift
 		;;
 	-h|--help)
@@ -131,13 +137,19 @@ then
 	exit 1
 fi
 
+if [ "$GRAPHICS_MODE" != "basic" ] && [ "$GRAPHICS_MODE" != "detailed" ]
+then
+	echo >&2 "Error: invalid graphics mode, must be either 'basic' or 'detailed'"
+	exit 1
+fi
+
 GRAPHICS_PARAMETERS_INVDW=""
 GRAPHICS_PARAMETERS_INSAS=""
 GRAPHICS_PARAMETERS_PADDED=""
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
-	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title ${GRAPHICS_BASENAME}_in_vdW --graphics-restrict-representations balls --graphics-restrict-chains ligand --graphics-color-balls 0x00FFFF"
+	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title ${GRAPHICS_BASENAME}_vdW --graphics-restrict-representations balls --graphics-restrict-chains ligand --graphics-color-balls 0x00FFFF"
 	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title ${GRAPHICS_BASENAME}_in_SAS --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand --graphics-color-faces 0x00FF00 --graphics-color-wireframe 0x007777"
 	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
@@ -280,15 +292,18 @@ then
 	exit 1
 fi
 
+read LIGAND_AREA_INVDW LIGAND_VOLUME_INVDW LIGAND_ATOMS_COUNT <<< "$(cat ./tessellation_summary_invdw | awk '{if($1=="su" && $2=="ligand"){print $5 " " $6 " " $7}}')"
+read LIGAND_AREA_INSAS LIGAND_VOLUME_INSAS <<< "$(cat ./tessellation_summary_insas | awk '{if($1=="su" && $2=="ligand"){print $5 " " $6}}')"
+read LIGAND_VOLUME_PADDED <<< "$(cat ./tessellation_summary_padded | awk '{if($1=="su" && $2=="ligand"){print $6}}')"
+
+read LIGAND_IFACE_AREA_INSAS LIGAND_IFACE_BOUNDARY_INSAS <<< "$(cat ./tessellation_summary_insas | awk '{if($1=="cu" && (($2=="ligand" && $5=="receptor") || ($2=="receptor" && $5=="ligand"))){print $8 " " $9}}')"
+read LIGAND_IFACE_AREA_PADDED LIGAND_IFACE_BOUNDARY_PADDED <<< "$(cat ./tessellation_summary_padded | awk '{if($1=="cu" && (($2=="ligand" && $5=="receptor") || ($2=="receptor" && $5=="ligand"))){print $8 " " $9}}')"
+
 {
-echo
-cat "./tessellation_summary_invdw"
-echo
-cat "./tessellation_summary_insas"
-echo
-cat "./tessellation_summary_padded"
-echo
+echo "input  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count"
+echo "$(basename ${INPUT_FILE})  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_IFACE_BOUNDARY_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_IFACE_BOUNDARY_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT"
 } \
+| column -t \
 > "./final_result.txt"
 
 cd - &> /dev/null
@@ -304,7 +319,15 @@ fi
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	mkdir -p "$(dirname ${OUTPUT_GRAPHICS_FILE})"
-	cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_insas.py" "${TMPLDIR}/draw_padded.py" \
+	
+	{
+		if [ "$GRAPHICS_MODE" == "detailed" ]
+		then
+			cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_insas.py" "${TMPLDIR}/draw_padded.py"
+		else
+			cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_padded.py"
+		fi
+	} \
 	| egrep -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
 	> "$OUTPUT_GRAPHICS_FILE"
 fi
