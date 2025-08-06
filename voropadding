@@ -315,8 +315,8 @@ VOLUME_FREEDOM_COEF="$(echo ${LIGAND_VOLUME_PADDED} ${LIGAND_VOLUME_INVDW} | awk
 IFACE_FREEDOM_COEF="$(echo ${LIGAND_IFACE_AREA_PADDED} ${LIGAND_IFACE_AREA_INSAS} | awk '{print ($1/$2)}')"
 
 {
-echo "input  volume_freedom_coef  interface_freedom_coef  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding"
-echo "$(basename ${INPUT_FILE})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_IFACE_BOUNDARY_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_IFACE_BOUNDARY_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
+echo "input  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding"
+echo "$(basename ${INPUT_FILE})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
 } \
 | column -t \
 > "./final_result.txt"

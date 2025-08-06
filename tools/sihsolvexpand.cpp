@@ -303,13 +303,11 @@ int main(const int argc, const char** argv)
 
 	const std::size_t initial_number_of_all_spheres=all_input_spheres.size();
 
-	const int max_number_of_expansions=app_params.max_expansion_layers+1;
-
 	const voronotalt::SubdividedIcosahedron sih(app_params.sih_depth);
 
 	int expansion_terminated_at_iteration=0;
 
-	for(int expansion_iteration=1;expansion_iteration<=max_number_of_expansions && expansion_terminated_at_iteration==0;expansion_iteration++)
+	for(int expansion_iteration=1;expansion_iteration<=app_params.max_expansion_layers && expansion_terminated_at_iteration==0;expansion_iteration++)
 	{
 		voronotalt::RadicalTessellation::Result result;
 
@@ -341,7 +339,6 @@ int main(const int argc, const char** argv)
 		}
 
 		std::vector< std::vector<voronotalt::SimpleSphere> > per_input_pseudosolvent_spheres(all_input_spheres.size()-number_of_first_spheres);
-		std::vector< std::vector<int> > per_input_pseudosolvent_sphere_types(all_input_spheres.size()-number_of_first_spheres);
 
 #ifdef VORONOTALT_OPENMP
 #pragma omp parallel
@@ -361,25 +358,20 @@ int main(const int argc, const char** argv)
 					{
 						const voronotalt::SimplePoint p=sih.get_point_on_sphere(k, sa);
 						const voronotalt::Float dist_to_sa=(voronotalt::distance_from_point_to_point(p, sa.p)-sa.r);
-						bool valid_as_ligand=(expansion_iteration<max_number_of_expansions);
-						bool valid_as_cap=true;
-						for(std::size_t j=0;j<app_params.bounding_spheres_.size() && (valid_as_ligand || valid_as_cap);j++)
+						bool valid_as_ligand=true;
+						for(std::size_t j=0;j<app_params.bounding_spheres_.size() && valid_as_ligand;j++)
 						{
 							const voronotalt::Float dist=voronotalt::distance_from_point_to_point(p, app_params.bounding_spheres_[j].p);
-							valid_as_ligand=valid_as_ligand && (dist<=app_params.bounding_spheres_[j].r);
-							valid_as_cap=valid_as_cap && (dist<=app_params.bounding_spheres_[j].r+(2.0*app_params.expansion_probe));
+							valid_as_ligand=valid_as_ligand && ((dist+app_params.expansion_probe)<=app_params.bounding_spheres_[j].r);
 						}
-						for(std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >::const_iterator jt=neighbors.begin();jt!=neighbors.end() && (valid_as_ligand || valid_as_cap);++jt)
+						for(std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >::const_iterator jt=neighbors.begin();jt!=neighbors.end() && valid_as_ligand;++jt)
 						{
 							const voronotalt::SimpleSphere& sb=all_input_spheres[jt->second];
-							const bool in_cell=(dist_to_sa<(voronotalt::distance_from_point_to_point(p, sb.p)-sb.r));
-							valid_as_ligand=valid_as_ligand && in_cell;
-							valid_as_cap=valid_as_cap && in_cell;
+							valid_as_ligand=valid_as_ligand && (dist_to_sa<(voronotalt::distance_from_point_to_point(p, sb.p)-sb.r));
 						}
-						if(valid_as_ligand || valid_as_cap)
+						if(valid_as_ligand)
 						{
 							per_input_pseudosolvent_spheres[i-number_of_first_spheres].push_back(voronotalt::SimpleSphere(p, app_params.expansion_probe*2.0));
-							per_input_pseudosolvent_sphere_types[i-number_of_first_spheres].push_back(valid_as_ligand ? 2 : 3);
 						}
 					}
 				}
@@ -392,17 +384,89 @@ int main(const int argc, const char** argv)
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				all_input_sphere_types.push_back(per_input_pseudosolvent_sphere_types[i][j]);
-				if(all_input_sphere_types.back()<3)
-				{
-					number_of_added_ligand_spheres++;
-				}
+				all_input_sphere_types.push_back(2);
+				number_of_added_ligand_spheres++;
 			}
 		}
 
 		if(number_of_added_ligand_spheres==0)
 		{
 			expansion_terminated_at_iteration=expansion_iteration;
+		}
+	}
+
+	{
+		voronotalt::RadicalTessellation::Result result;
+
+		voronotalt::RadicalTessellation::construct_full_tessellation(all_input_spheres, result);
+
+		std::clog << "Stage capping tessellation summary:" << std::endl;
+		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_basic(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
+		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_about_cells(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
+
+		if(result.cells_summaries.size()!=all_input_spheres.size())
+		{
+			std::cerr << "Error: failed to summarize cells\n";
+			return 1;
+		}
+
+		std::vector< std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> > > graph(all_input_spheres.size()-number_of_first_spheres);
+
+		for(std::size_t i=0;i<result.contacts_summaries.size();i++)
+		{
+			const voronotalt::RadicalTessellation::ContactDescriptorSummary& cds=result.contacts_summaries[i];
+			if(cds.id_a>=number_of_first_spheres && cds.id_a<result.cells_summaries.size() && result.cells_summaries[cds.id_a].sas_area>0.0)
+			{
+				graph[cds.id_a-number_of_first_spheres].insert(std::pair<voronotalt::Float, voronotalt::UnsignedInt>(cds.distance, cds.id_b));
+			}
+			if(cds.id_b>=number_of_first_spheres && cds.id_b<result.cells_summaries.size() && result.cells_summaries[cds.id_b].sas_area>0.0)
+			{
+				graph[cds.id_b-number_of_first_spheres].insert(std::pair<voronotalt::Float, voronotalt::UnsignedInt>(cds.distance, cds.id_a));
+			}
+		}
+
+		std::vector< std::vector<voronotalt::SimpleSphere> > per_input_pseudosolvent_spheres(all_input_spheres.size()-number_of_first_spheres);
+
+#ifdef VORONOTALT_OPENMP
+#pragma omp parallel
+#endif
+		{
+#ifdef VORONOTALT_OPENMP
+#pragma omp for
+#endif
+			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
+			{
+				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
+				if(cs.sas_area>0.0 && all_input_sphere_types[i]<3)
+				{
+					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
+					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
+					for(std::size_t k=0;k<sih.vertices.size();k++)
+					{
+						const voronotalt::SimplePoint p=sih.get_point_on_sphere(k, sa);
+						const voronotalt::Float dist_to_sa=(voronotalt::distance_from_point_to_point(p, sa.p)-sa.r);
+						bool valid_as_cap=true;
+						for(std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >::const_iterator jt=neighbors.begin();jt!=neighbors.end() && valid_as_cap;++jt)
+						{
+							const voronotalt::SimpleSphere& sb=all_input_spheres[jt->second];
+							valid_as_cap=valid_as_cap && (dist_to_sa<(voronotalt::distance_from_point_to_point(p, sb.p)-sb.r));
+						}
+						if(valid_as_cap)
+						{
+							per_input_pseudosolvent_spheres[i-number_of_first_spheres].push_back(voronotalt::SimpleSphere(p, app_params.expansion_probe*2.0));
+						}
+					}
+				}
+			}
+		}
+
+		for(std::size_t i=0;i<per_input_pseudosolvent_spheres.size();i++)
+		{
+			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
+			{
+				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
+				all_input_sphere_types.push_back(3);
+			}
 		}
 	}
 

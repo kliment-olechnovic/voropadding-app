@@ -1,2 +1,2 @@
-input     volume_freedom_coef  interface_freedom_coef  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
-2ifb.pdb  4.07774              1.77804                 1032.74        695.279            0                      464.589          391.037              38.9761                  31.2068        253.263     18           2
+input     volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
+2ifb.pdb  4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263     18           2

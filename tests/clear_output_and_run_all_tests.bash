@@ -20,8 +20,10 @@ done \
 ../voropadding \
   --input "./input/1cnw.pdb" \
   --restriction-centers '[-aname ZN]' \
-  --restriction-radius 14 \
+  --restriction-radius 16.0 \
   --output-table-file "./output/restricted_table_1cnw.txt" \
-  --output-graphics-file "./output/restricted_draw_1cnw.py"
+  --output-graphics-file "./output/restricted_draw_1cnw.py" \
+  --print-mode v \
+  --graphics-mode detailed
 
   
