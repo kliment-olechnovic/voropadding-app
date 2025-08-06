@@ -73,7 +73,7 @@ do
 		shift
 		;;
 	--selection)
-		INPUT_LIGAND="$SELECTION"
+		SELECTION="$OPTARG"
 		shift
 		;;
 	--max-padding)
