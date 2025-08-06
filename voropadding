@@ -10,7 +10,7 @@ and then calculates the total available volume and the total interface area of t
 Options:
     --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
-    --max-padding                 number     maximum number of padding layers, default is 3
+    --max-padding                 number     maximum number of padding layers, default is 2
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
     --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
@@ -53,7 +53,7 @@ fi
 
 INPUT_FILE=""
 SELECTION="(not [-protein])"
-MAX_PADDING="3"
+MAX_PADDING="2"
 RESTRICTION_CENTERS=""
 RESTRICTION_RADIUS="10.0"
 OUTPUT_TABLE_FILE="_stdout"
@@ -311,9 +311,12 @@ read LIGAND_VOLUME_PADDED <<< "$(cat ./tessellation_summary_padded | awk '{if($1
 read LIGAND_IFACE_AREA_INSAS LIGAND_IFACE_BOUNDARY_INSAS <<< "$(cat ./tessellation_summary_insas | awk '{if($1=="cu" && (($2=="ligand" && $5=="receptor") || ($2=="receptor" && $5=="ligand"))){print $8 " " $9}}')"
 read LIGAND_IFACE_AREA_PADDED LIGAND_IFACE_BOUNDARY_PADDED <<< "$(cat ./tessellation_summary_padded | awk '{if($1=="cu" && (($2=="ligand" && $5=="receptor") || ($2=="receptor" && $5=="ligand"))){print $8 " " $9}}')"
 
+VOLUME_FREEDOM_COEF="$(echo ${LIGAND_VOLUME_PADDED} ${LIGAND_VOLUME_INVDW} | awk '{print ($1/$2)}')"
+IFACE_FREEDOM_COEF="$(echo ${LIGAND_IFACE_AREA_PADDED} ${LIGAND_IFACE_AREA_INSAS} | awk '{print ($1/$2)}')"
+
 {
-echo "input  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count"
-echo "$(basename ${INPUT_FILE})  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_IFACE_BOUNDARY_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_IFACE_BOUNDARY_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT"
+echo "input  volume_freedom_coef  interface_freedom_coef  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding"
+echo "$(basename ${INPUT_FILE})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_IFACE_BOUNDARY_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_IFACE_BOUNDARY_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
 } \
 | column -t \
 > "./final_result.txt"

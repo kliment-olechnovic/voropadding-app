@@ -1,0 +1,2 @@
+input     volume_freedom_coef  interface_freedom_coef  volume_padded  iface_area_padded  iface_boundary_padded  volume_unpadded  iface_area_unpadded  iface_boundary_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
+5zyg.pdb  4.49694              2.10274                 1695.58        1027.75            2.39971                674.586          488.766              70.375                   41.4579        377.052     30           2
