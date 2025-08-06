@@ -132,8 +132,8 @@ if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
 	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title in_vdW_${GRAPHICS_BASENAME} --graphics-restrict-representations balls --graphics-restrict-chains ligand"
-	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title in_SAS_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chains ligand"
-	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chains ligand"
+	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title in_SAS_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand"
+	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand"
 fi
 
 readonly TMPLDIR=$(mktemp -d)
@@ -253,12 +253,6 @@ if [ ! -s "padded_complex" ]
 then
 	echo >&2 "Error: failed to generate a padded structure"
 	exit 1
-fi
-
-GRAPHICS_PARAMETERS_PADDED=""
-if [ -n "$OUTPUT_GRAPHICS_FILE" ]
-then
-	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations balls wireframe faces --graphics-restrict-chains ligand"
 fi
 
 cat "./padded_complex" \

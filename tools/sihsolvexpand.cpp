@@ -272,11 +272,15 @@ int main(const int argc, const char** argv)
 	std::vector<voronotalt::SimpleSphere> all_input_spheres;
 	all_input_spheres.reserve(spheres_input_result.spheres.size());
 
+	std::vector<int> all_input_sphere_types;
+	all_input_sphere_types.reserve(spheres_input_result.spheres.size());
+
 	for(std::size_t i=0;i<spheres_input_result.sphere_labels.size();i++)
 	{
 		if(spheres_input_result.sphere_labels[i].chain_id!=app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
+			all_input_sphere_types.push_back(0);
 		}
 	}
 
@@ -287,6 +291,7 @@ int main(const int argc, const char** argv)
 		if(spheres_input_result.sphere_labels[i].chain_id==app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
+			all_input_sphere_types.push_back(1);
 		}
 	}
 
@@ -298,11 +303,11 @@ int main(const int argc, const char** argv)
 
 	const std::size_t initial_number_of_all_spheres=all_input_spheres.size();
 
-	const int max_number_of_expansions=static_cast<int>(std::ceil(app_params.max_expansion_distance/(2.0*app_params.expansion_probe)));
+	const int max_number_of_expansions=static_cast<int>(std::ceil(app_params.max_expansion_distance/(2.0*app_params.expansion_probe)))+1;
 
-	if(max_number_of_expansions<1)
+	if(max_number_of_expansions<2)
 	{
-		std::cerr << "Error: estimated number of expansions is less than 1\n";
+		std::cerr << "Error: estimated number of expansions is less than 2\n";
 		return 1;
 	}
 
@@ -342,6 +347,7 @@ int main(const int argc, const char** argv)
 		}
 
 		std::vector< std::vector<voronotalt::SimpleSphere> > per_input_pseudosolvent_spheres(all_input_spheres.size()-number_of_first_spheres);
+		std::vector< std::vector<int> > per_input_pseudosolvent_sphere_types(all_input_spheres.size()-number_of_first_spheres);
 
 #ifdef VORONOTALT_OPENMP
 #pragma omp parallel
@@ -361,64 +367,68 @@ int main(const int argc, const char** argv)
 					{
 						const voronotalt::SimplePoint p=sih.get_point_on_sphere(k, sa);
 						const voronotalt::Float dist_to_sa=(voronotalt::distance_from_point_to_point(p, sa.p)-sa.r);
-						bool valid=true;
-						for(std::size_t j=0;j<app_params.bounding_spheres_.size() && valid;j++)
+						bool valid_as_ligand=(expansion_iteration<max_number_of_expansions);
+						bool valid_as_cap=true;
+						for(std::size_t j=0;j<app_params.bounding_spheres_.size() && (valid_as_ligand || valid_as_cap);j++)
 						{
-							valid=valid && (voronotalt::distance_from_point_to_point(p, app_params.bounding_spheres_[j].p)<=app_params.bounding_spheres_[j].r);
+							const voronotalt::Float dist=voronotalt::distance_from_point_to_point(p, app_params.bounding_spheres_[j].p);
+							valid_as_ligand=valid_as_ligand && (dist<=app_params.bounding_spheres_[j].r);
+							valid_as_cap=valid_as_cap && (dist<=app_params.bounding_spheres_[j].r+(2.0*app_params.expansion_probe));
 						}
-						for(std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >::const_iterator jt=neighbors.begin();jt!=neighbors.end() && valid;++jt)
+						for(std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >::const_iterator jt=neighbors.begin();jt!=neighbors.end() && (valid_as_ligand || valid_as_cap);++jt)
 						{
 							const voronotalt::SimpleSphere& sb=all_input_spheres[jt->second];
-							valid=valid && (dist_to_sa<(voronotalt::distance_from_point_to_point(p, sb.p)-sb.r));
+							const bool in_cell=(dist_to_sa<(voronotalt::distance_from_point_to_point(p, sb.p)-sb.r));
+							valid_as_ligand=valid_as_ligand && in_cell;
+							valid_as_cap=valid_as_cap && in_cell;
 						}
-						if(valid)
+						if(valid_as_ligand || valid_as_cap)
 						{
 							per_input_pseudosolvent_spheres[i-number_of_first_spheres].push_back(voronotalt::SimpleSphere(p, app_params.expansion_probe*2.0));
+							per_input_pseudosolvent_sphere_types[i-number_of_first_spheres].push_back(valid_as_ligand ? 2 : 3);
 						}
 					}
 				}
 			}
 		}
 
-		int number_of_added_spheres=0;
+		int number_of_added_ligand_spheres=0;
 		for(std::size_t i=0;i<per_input_pseudosolvent_spheres.size();i++)
 		{
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				number_of_added_spheres++;
+				all_input_sphere_types.push_back(per_input_pseudosolvent_sphere_types[i][j]);
+				if(all_input_sphere_types.back()<3)
+				{
+					number_of_added_ligand_spheres++;
+				}
 			}
 		}
 
-		if(number_of_added_spheres==0)
+		if(number_of_added_ligand_spheres==0)
 		{
 			expansion_terminated_at_iteration=expansion_iteration;
 		}
 	}
 
+	for(std::size_t i=0;i<all_input_spheres.size();i++)
 	{
-		for(std::size_t i=number_of_first_spheres;i<all_input_spheres.size();i++)
+		voronotalt::SimpleSphere& s=all_input_spheres[i];
+		s.r-=app_params.expansion_probe;
+		const int input_sphere_type=all_input_sphere_types[i];
+		const std::string chain_name=(input_sphere_type==0 ? "receptor" : (input_sphere_type==1 ? "ligand" : (input_sphere_type==2 ? "ligand" : "cap")));
+		if(chain_name=="ligand")
 		{
-			all_input_spheres[i].r+=app_params.radii_inflation;
+			s.r+=app_params.radii_inflation;
 		}
-
-		for(std::size_t i=0;i<all_input_spheres.size();i++)
+		if(app_params.output_for_voronota_gl)
 		{
-			all_input_spheres[i].r-=app_params.expansion_probe;
+			std::cout << "c<" << chain_name << ">r<" << i << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . .\n";
 		}
-
-		for(std::size_t i=0;i<all_input_spheres.size();i++)
+		else
 		{
-			const voronotalt::SimpleSphere& s=all_input_spheres[i];
-			const std::string chain_name=(i<number_of_first_spheres ? "receptor" : "ligand") ;
-			if(app_params.output_for_voronota_gl)
-			{
-				std::cout << "c<" << chain_name << ">r<" << i << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . .\n";
-			}
-			else
-			{
-				std::cout << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << "\n";
-			}
+			std::cout << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << "\n";
 		}
 	}
 
