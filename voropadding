@@ -125,6 +125,17 @@ then
 	exit 1
 fi
 
+GRAPHICS_PARAMETERS_INVDW=""
+GRAPHICS_PARAMETERS_INSAS=""
+GRAPHICS_PARAMETERS_PADDED=""
+if [ -n "$OUTPUT_GRAPHICS_FILE" ]
+then
+	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
+	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title in_vdW_${GRAPHICS_BASENAME} --graphics-restrict-representations balls --graphics-restrict-chains ligand"
+	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title in_SAS_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chains ligand"
+	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chains ligand"
+fi
+
 readonly TMPLDIR=$(mktemp -d)
 trap "rm -r $TMPLDIR" EXIT
 
@@ -196,33 +207,32 @@ cat "ligand.pa" | awk '{print "ligand " $2 " " $3 " " $4 " " $5}'
 > "./inputballs"
 
 cat "./inputballs" \
-| ${SCRIPTDIR}/tools/voronota-lt \
+| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INVDW} \
   --probe 0.001 \
   --print-contacts-chain-level \
   --print-cells-chain-level \
 2> /dev/null \
-> "./vdw_tessellation_summary"
+> "./tessellation_summary_invdw"
 
-if [ ! -s "vdw_tessellation_summary" ]
+if [ ! -s "tessellation_summary_invdw" ]
 then
-	echo >&2 "Error: failed to calculate tessellation summary constained by the van der Waals surface"
+	echo >&2 "Error: failed to calculate tessellation summary constrained by the van der Waals surface"
 	exit 1
 fi
 
 cat "./inputballs" \
-| ${SCRIPTDIR}/tools/voronota-lt \
+| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INSAS} \
   --probe 1.4 \
   --print-contacts-chain-level \
   --print-cells-chain-level \
 2> /dev/null \
-> "./basic_tessellation_summary"
+> "./tessellation_summary_insas"
 
-if [ ! -s "basic_tessellation_summary" ]
+if [ ! -s "tessellation_summary_insas" ]
 then
-	echo >&2 "Error: failed to calculate basic tessellation summary constained by the SAS"
+	echo >&2 "Error: failed to calculate basic tessellation summary constrained by the SAS"
 	exit 1
 fi
-
 
 PARAMS_FOR_BOUNDING_SPHERES=""
 
@@ -233,9 +243,9 @@ then
 fi
 
 cat "./inputballs" \
-| ${SCRIPTDIR}/tools/sihsolvexpand \
+| ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
   --chain-of-interest "ligand" \
-  --max-distance "$MAX_PADDING" ${PARAMS_FOR_BOUNDING_SPHERES} \
+  --max-distance "$MAX_PADDING" \
 2> /dev/null \
 > "./padded_complex"
 
@@ -245,46 +255,39 @@ then
 	exit 1
 fi
 
-{
+GRAPHICS_PARAMETERS_PADDED=""
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
-	GRAPHICSNAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py)"
-
-	cat "./padded_complex" \
-	| ${SCRIPTDIR}/tools/voronota-lt \
-	  --print-contacts-chain-level \
-	  --print-cells-chain-level \
-	  --graphics-output-file "./draw.py" \
-	  --graphics-restrict-representations balls wireframe faces \
-	  --graphics-restrict-chains ligand \
-	  --graphics-title "$GRAPHICSNAME" \
-	2> /dev/null
-else
-	cat "./padded_complex" \
-	| ${SCRIPTDIR}/tools/voronota-lt \
-	  --print-contacts-chain-level \
-	  --print-cells-chain-level \
-	2> /dev/null
+	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations balls wireframe faces --graphics-restrict-chains ligand"
 fi
-} \
-> "./tessellation_summary"
 
-if [ ! -s "tessellation_summary" ]
+cat "./padded_complex" \
+| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_PADDED} \
+  --print-contacts-chain-level \
+  --print-cells-chain-level \
+2> /dev/null \
+> "./tessellation_summary_padded"
+
+if [ ! -s "tessellation_summary_padded" ]
 then
 	echo >&2 "Error: failed to calculate tessellation summary"
 	exit 1
 fi
 
-if [ -n "$OUTPUT_GRAPHICS_FILE" ] && [ ! -s "draw.py" ]
+if [ -n "$OUTPUT_GRAPHICS_FILE" ] && [ ! -s "draw_padded.py" ]
 then
 	echo >&2 "Error: failed to generate graphics"
 	exit 1
 fi
 
 {
-cat "./vdw_tessellation_summary"
-cat "./basic_tessellation_summary"
-cat "./tessellation_summary"
+echo
+cat "./tessellation_summary_invdw"
+echo
+cat "./tessellation_summary_insas"
+echo
+cat "./tessellation_summary_padded"
+echo
 } \
 > "./final_result.txt"
 
@@ -301,6 +304,6 @@ fi
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	mkdir -p "$(dirname ${OUTPUT_GRAPHICS_FILE})"
-	cat "${TMPLDIR}/draw.py" > "$OUTPUT_GRAPHICS_FILE"
+	cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_insas.py" "${TMPLDIR}/draw_padded.py" > "$OUTPUT_GRAPHICS_FILE"
 fi
 
