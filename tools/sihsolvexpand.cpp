@@ -24,7 +24,7 @@ SIhSolvExpand
 
 Options:
     --chain-of-interest                              string  *  name of the chain to expand from
-    --max-distance                                   number     maximum expansion distance, default is 7.0
+    --max-layers                                     number     maximum number of expansion layers, default is 2
     --probe                                          number     probe radius, default is 1.4
     --inflate-expanded-set-of-balls                  number     value to add to the radii of the balls in the expanded set, default is 0.7
     --bound-by-spheres                               numbers    quadruples of numbers (x, y, z, r) that define bounding spheres
@@ -69,7 +69,7 @@ class ApplicationParameters
 {
 public:
 	unsigned int max_number_of_processors;
-	voronotalt::Float max_expansion_distance;
+	int max_expansion_layers;
 	voronotalt::Float expansion_probe;
 	voronotalt::Float radii_inflation;
 	unsigned int sih_depth;
@@ -84,7 +84,7 @@ public:
 
 	ApplicationParameters() noexcept :
 		max_number_of_processors(voronotalt::openmp_enabled() ? 2 : 1),
-		max_expansion_distance(7.0),
+		max_expansion_layers(2),
 		expansion_probe(1.4),
 		radii_inflation(0.7),
 		sih_depth(2),
@@ -120,12 +120,12 @@ public:
 				{
 					chain_of_interest=opt.args_strings.front();
 				}
-				else if(opt.name=="max-distance" && opt.args_doubles.size()==1)
+				else if(opt.name=="max-layers" && opt.args_ints.size()==1)
 				{
-					max_expansion_distance=static_cast<voronotalt::Float>(opt.args_doubles.front());
-					if(!(max_expansion_distance>=1.0 && max_expansion_distance<=30.0))
+					max_expansion_layers=static_cast<int>(opt.args_ints.front());
+					if(!(max_expansion_layers>=1 && max_expansion_layers<=10))
 					{
-						error_log_for_options_parsing << "Error: invalid command line argument for the maximum expansion distance, must be a value from 1.0 to 30.0.\n";
+						error_log_for_options_parsing << "Error: invalid command line argument for the maximum number of expansion layers, must be a value from 1 to 10.\n";
 					}
 				}
 				else if(opt.name=="probe" && opt.args_doubles.size()==1)
@@ -303,13 +303,7 @@ int main(const int argc, const char** argv)
 
 	const std::size_t initial_number_of_all_spheres=all_input_spheres.size();
 
-	const int max_number_of_expansions=static_cast<int>(std::ceil(app_params.max_expansion_distance/(2.0*app_params.expansion_probe)))+1;
-
-	if(max_number_of_expansions<2)
-	{
-		std::cerr << "Error: estimated number of expansions is less than 2\n";
-		return 1;
-	}
+	const int max_number_of_expansions=app_params.max_expansion_layers+1;
 
 	const voronotalt::SubdividedIcosahedron sih(app_params.sih_depth);
 

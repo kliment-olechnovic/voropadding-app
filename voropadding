@@ -10,7 +10,7 @@ and then calculates the total available volume and the total interface area of t
 Options:
     --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
-    --max-padding                 number     maximum padding width, default is 7.0
+    --max-padding                 number     maximum number of padding layers, default is 2
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
     --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
@@ -28,7 +28,7 @@ Examples:
 
     voropadding --input "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
 
-    voropadding --input "./complex.pdb" --max-padding 8.0 --output-graphics "./padded.py"
+    voropadding --input "./complex.pdb" --max-padding 3 --output-graphics "./padded.py"
 
 EOF
 exit 1
@@ -51,7 +51,7 @@ fi
 
 INPUT_FILE=""
 SELECTION="(not [-protein])"
-MAX_PADDING="7.0"
+MAX_PADDING="2"
 RESTRICTION_CENTERS=""
 RESTRICTION_RADIUS="10.0"
 OUTPUT_TABLE_FILE="_stdout"
@@ -125,15 +125,21 @@ then
 	exit 1
 fi
 
+if [ -z "$MAX_PADDING" ] || [ "$MAX_PADDING" -lt "1" ] || [ "$MAX_PADDING" -gt "10" ]
+then
+	echo >&2 "Error: invalid value '$MAX_PADDING' for the maximum number of padding layers, must be an integer between 1 and 10"
+	exit 1
+fi
+
 GRAPHICS_PARAMETERS_INVDW=""
 GRAPHICS_PARAMETERS_INSAS=""
 GRAPHICS_PARAMETERS_PADDED=""
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
-	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title in_vdW_${GRAPHICS_BASENAME} --graphics-restrict-representations balls --graphics-restrict-chains ligand"
-	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title in_SAS_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand"
-	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title padded_${GRAPHICS_BASENAME} --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand"
+	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title ${GRAPHICS_BASENAME}_in_vdW --graphics-restrict-representations balls --graphics-restrict-chains ligand --graphics-color-balls 0x00FFFF"
+	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title ${GRAPHICS_BASENAME}_in_SAS --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand --graphics-color-faces 0x00FF00 --graphics-color-wireframe 0x007777"
+	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
 
 readonly TMPLDIR=$(mktemp -d)
@@ -190,13 +196,13 @@ fi
 
 if [ ! -s "receptor.pa" ]
 then
-	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '(nor (${SELECTION}))'"
+	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '(not (${SELECTION}))'"
 	exit 1
 fi
 
 if [ -n "$RESTRICTION_CENTERS" ] && [ ! -s "restriction.pa" ]
 then
-	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_FILE}' using selection '(nor (${RESTRICTION_CENTERS}))'"
+	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_FILE}' using selection '(not (${RESTRICTION_CENTERS}))'"
 	exit 1
 fi
 
@@ -245,7 +251,7 @@ fi
 cat "./inputballs" \
 | ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
   --chain-of-interest "ligand" \
-  --max-distance "$MAX_PADDING" \
+  --max-layers "$MAX_PADDING" \
 2> /dev/null \
 > "./padded_complex"
 
@@ -298,6 +304,8 @@ fi
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
 then
 	mkdir -p "$(dirname ${OUTPUT_GRAPHICS_FILE})"
-	cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_insas.py" "${TMPLDIR}/draw_padded.py" > "$OUTPUT_GRAPHICS_FILE"
+	cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_insas.py" "${TMPLDIR}/draw_padded.py" \
+	| egrep -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
+	> "$OUTPUT_GRAPHICS_FILE"
 fi
 
