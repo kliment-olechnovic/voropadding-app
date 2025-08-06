@@ -353,7 +353,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
 			{
 				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
-				if(cs.sas_area>0.0)
+				if(cs.sas_area>0.0 && all_input_sphere_types[i]<3)
 				{
 					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
 					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
