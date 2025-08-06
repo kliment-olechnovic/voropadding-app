@@ -16,6 +16,7 @@ Options:
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
+    --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -29,7 +30,7 @@ Examples:
 
     voropadding --input "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
 
-    voropadding --input "./complex.pdb" --max-padding 3 --output-graphics "./padded.py"
+    voropadding --input "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
 
 EOF
 exit 1
