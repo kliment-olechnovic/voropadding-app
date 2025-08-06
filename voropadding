@@ -58,6 +58,7 @@ RESTRICTION_RADIUS="10.0"
 OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
 GRAPHICS_MODE="basic"
+PRINT_MODE="h"
 HELP_MODE="false"
 
 while [[ $# > 0 ]]
@@ -96,6 +97,10 @@ do
 		;;
 	--graphics-mode)
 		GRAPHICS_MODE="$OPTARG"
+		shift
+		;;
+	--print-mode)
+		PRINT_MODE="$OPTARG"
 		shift
 		;;
 	-h|--help)
@@ -140,6 +145,12 @@ fi
 if [ "$GRAPHICS_MODE" != "basic" ] && [ "$GRAPHICS_MODE" != "detailed" ]
 then
 	echo >&2 "Error: invalid graphics mode, must be either 'basic' or 'detailed'"
+	exit 1
+fi
+
+if [ "$PRINT_MODE" != "h" ] && [ "$PRINT_MODE" != "v" ]
+then
+	echo >&2 "Error: invalid printing mode '$PRINT_MODE', must be 'h' or 'v'"
 	exit 1
 fi
 
@@ -313,7 +324,15 @@ then
 	mkdir -p "$(dirname ${OUTPUT_TABLE_FILE})"
 	cat "${TMPLDIR}/final_result.txt" > "$OUTPUT_TABLE_FILE"
 else
-	cat "${TMPLDIR}/final_result.txt"
+	if [ "$PRINT_MODE" == "v" ]
+	then
+		paste \
+		  <(cat "${TMPLDIR}/final_result.txt" | head -1 | sed 's/\s\+/\n/g') \
+		  <(cat "${TMPLDIR}/final_result.txt" | tail -1 | sed 's/\s\+/\n/g') \
+		| column -t
+	else
+		cat "${TMPLDIR}/final_result.txt"
+	fi
 fi
 
 if [ -n "$OUTPUT_GRAPHICS_FILE" ]
