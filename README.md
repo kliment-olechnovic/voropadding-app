@@ -27,7 +27,10 @@ The source code for the compilable software is included, and can be used to buil
 ./tools/build-all.bash
 ```
 
-VoroPadding does not require any setup apart from an optional rebuilding of the executable binaries in the 'tools' subdirectory.
+On Linux, VoroPadding does not require any setup apart from an optional rebuilding of the executable binaries in the 'tools' subdirectory.
+
+Although VoroPadding was tested only on Linux, it should also work on macOS and on Windows (using the Windows Subsystem for Linux).
+Before running on macOS or on Windows, please rebuild all the executables by running `./tools/build-all.bash`.
 
 
 # Running the VoroPadding command-line tool
