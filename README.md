@@ -74,14 +74,15 @@ Examples:
 
 ```
 
-# Output example
+# Output examples
+
+## Basic example
 
 Running
 
 ```bash
 ./voropadding \
   --input "./tests/input/5zyg.pdb" \
-  --max-padding 2 \
   --output-graphics-file "./vis_5zyg.py" \
   --print-mode v
 ```
@@ -122,9 +123,48 @@ The generated `vis_5zyg.py` can be opened in PyMol by its own, or together with 
 pymol ./tests/input/5zyg.pdb ./vis_5zyg.py
 ```
 
-which results in visulizations similar to the ones below:
+which allows visualizations similar to the ones below:
 
-![](./visual_example1.png)
+![](./doc/visual_example1.png)
 
-![](./visual_example2.png)
+![](./doc/visual_example2.png)
+
+
+## Example with additional restrictions
+
+A user may specify a selection of an atom (or atoms) and a maximum allowed distance from the centers of the selected atoms.
+This is useful for cases where there is a covalently bound ligand.
+Note that if multiple atoms are selected, then multiple restrictions are combined using the `AND` logical operation, not `OR`.
+
+Below is an example of running with additional restrictions:
+
+```bash
+./voropadding \
+  --input "./tests/input/1cnw.pdb" \
+  --selection '[-chain A -rnum 555]' \
+  --restriction-centers '[-chain A -rnum 262 -aname ZN]' \
+  --restriction-radius 16.0 \
+  --output-graphics-file "./vis_1cnw.py" \
+  --print-mode v
+```
+
+which produces the following output:
+
+```bash
+input                1cnw.pdb
+volume_freedom_coef  5.67799
+iface_freedom_coef   1.91799
+volume_padded        1728.97
+iface_area_padded    585.138
+volume_unpadded      683.218
+iface_area_unpadded  305.078
+sasa_unpadded        233.052
+volume_vdw           304.504
+atoms_count          26
+max_padding          2
+```
+
+and the following visualization:
+
+![](./doc/visual_example3.png)
 
