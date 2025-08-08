@@ -32,7 +32,7 @@ SPHERE, -37.135, 1.558, -9.774, 1.6,
 SPHERE, -38.412, 1.792, -9.453, 1.8,
 SPHERE, -38.798, 2.963, -8.788, 1.8,
 ]
-cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_5zyg_vdW_balls_atoms_ligand')
+cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_5zyg_vdW_balls')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
 from pymol.cgo import *
@@ -6311,7 +6311,7 @@ NORMAL, 0.00189603, -0.982464, -0.186444, VERTEX, -37.8487, 3.43194, 0.539595,
 NORMAL, 0.00189603, -0.982464, -0.186444, VERTEX, -35.6178, 3.5128, 0.136155, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_5zyg_padded_faces_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_5zyg_padded_iface')
 cgo_graphics_list_wireframe_contacts_cap_ligand = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, -35.7516, -5.50489, -6.24336, 
@@ -7125,7 +7125,7 @@ VERTEX, -28.3627, -5.33098, -3.92238,
 VERTEX, -28.596, -5.46482, -3.62759, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'base_draw_5zyg_padded_wireframe_contacts_cap_ligand')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'base_draw_5zyg_padded_cap')
 cgo_graphics_list_wireframe_contacts_ligand_receptor = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, -36.6675, 7.23168, 3.383, 
@@ -11199,6 +11199,7 @@ VERTEX, -39.0401, 3.2932, 1.25856,
 VERTEX, -37.8487, 3.43194, 0.539595, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_5zyg_padded_wireframe_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_5zyg_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
+cmd.do('group cg_base_draw_5zyg, base_draw_5zyg_*');

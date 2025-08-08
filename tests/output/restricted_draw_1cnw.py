@@ -29,7 +29,7 @@ SPHERE, 2.525, 12.227, 13.744, 1.5,
 SPHERE, 3.013, 14.6, 14.091, 1.8,
 SPHERE, 2.197, 15.669, 14.776, 1.6,
 ]
-cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'restricted_draw_1cnw_vdW_balls_atoms_ligand')
+cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'restricted_draw_1cnw_vdW_balls')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
 from pymol.cgo import *
@@ -1563,7 +1563,7 @@ NORMAL, -0.476701, 0.348092, 0.80721, VERTEX, -0.224722, 15.6519, 16.5466,
 NORMAL, -0.476701, 0.348092, 0.80721, VERTEX, -0.210894, 15.6282, 16.565, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'restricted_draw_1cnw_in_SAS_faces_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'restricted_draw_1cnw_in_SAS_iface')
 cgo_graphics_list_wireframe_contacts_ligand_receptor = [COLOR, 0, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, -3.00725, 1.17553, 12.667, 
@@ -2813,7 +2813,7 @@ VERTEX, -0.296491, 15.804, 16.4386,
 VERTEX, -0.224722, 15.6519, 16.5466, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'restricted_draw_1cnw_in_SAS_wireframe_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'restricted_draw_1cnw_in_SAS_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
 from pymol.cgo import *
@@ -17870,7 +17870,7 @@ NORMAL, 0.582353, -0.258208, -0.77084, VERTEX, -4.44856, -0.582989, 10.1957,
 NORMAL, 0.582353, -0.258208, -0.77084, VERTEX, -3.99761, -0.388619, 10.4713, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'restricted_draw_1cnw_padded_faces_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'restricted_draw_1cnw_padded_iface')
 cgo_graphics_list_wireframe_contacts_cap_ligand = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, -1.49462, 13.7893, 13.0603, 
@@ -26729,7 +26729,7 @@ VERTEX, 6.19347, 7.73088, 11.8885,
 VERTEX, 6.19022, 7.73697, 11.8102, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'restricted_draw_1cnw_padded_wireframe_contacts_cap_ligand')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'restricted_draw_1cnw_padded_cap')
 cgo_graphics_list_wireframe_contacts_ligand_receptor = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, 4.69826, 2.94302, 13.2515, 
@@ -29596,6 +29596,7 @@ VERTEX, -3.50313, -2.5643, 11.5737,
 VERTEX, -4.44856, -0.582989, 10.1957, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'restricted_draw_1cnw_padded_wireframe_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'restricted_draw_1cnw_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
+cmd.do('group cg_restricted_draw_1cnw, restricted_draw_1cnw_*');

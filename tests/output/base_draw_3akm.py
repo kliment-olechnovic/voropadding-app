@@ -33,7 +33,7 @@ SPHERE, 22.436, -12.59, 35.053, 1.5,
 SPHERE, 24.359, -13.484, 35.476, 1.5,
 SPHERE, 21.59, -10.432, 30.863, 0.72,
 ]
-cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_3akm_vdW_balls_atoms_ligand')
+cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_3akm_vdW_balls')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
 from pymol.cgo import *
@@ -12941,7 +12941,7 @@ NORMAL, -0.382548, -0.813143, -0.438698, VERTEX, 14.5912, -14.781, 30.0546,
 NORMAL, -0.382548, -0.813143, -0.438698, VERTEX, 14.1373, -14.6729, 30.2502, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_3akm_padded_faces_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_3akm_padded_iface')
 cgo_graphics_list_wireframe_contacts_cap_ligand = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, 15.0273, -19.6362, 21.8693, 
@@ -18898,7 +18898,7 @@ VERTEX, 4.20724, -17.4203, 26.134,
 VERTEX, 4.21708, -17.6538, 26.2821, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'base_draw_3akm_padded_wireframe_contacts_cap_ligand')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_cap_ligand, 'base_draw_3akm_padded_cap')
 cgo_graphics_list_wireframe_contacts_ligand_receptor = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, 18.0032, -9.38203, 23.6856, 
@@ -22990,6 +22990,7 @@ VERTEX, 14.5958, -14.6632, 29.8322,
 VERTEX, 14.5912, -14.781, 30.0546, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_3akm_padded_wireframe_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_3akm_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
+cmd.do('group cg_base_draw_3akm, base_draw_3akm_*');

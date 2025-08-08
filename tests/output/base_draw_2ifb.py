@@ -20,7 +20,7 @@ SPHERE, 27.07, 13.115, 13.242, 1.8,
 SPHERE, 28.497, 12.655, 13.507, 1.8,
 SPHERE, 29.555, 13.599, 12.942, 1.8,
 ]
-cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_2ifb_vdW_balls_atoms_ligand')
+cmd.load_cgo(cgo_graphics_list_balls_atoms_ligand, 'base_draw_2ifb_vdW_balls')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
 from pymol.cgo import *
@@ -3271,7 +3271,7 @@ NORMAL, -0.464486, 0.397672, -0.791271, VERTEX, 21.6822, 13.6561, 9.71502,
 NORMAL, -0.464486, 0.397672, -0.791271, VERTEX, 20.1142, 13.5036, 10.5587, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_2ifb_padded_faces_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_faces_contacts_ligand_receptor, 'base_draw_2ifb_padded_iface')
 cgo_graphics_list_wireframe_contacts_ligand_receptor = [COLOR, 0.466667, 0.466667, 0.466667,
 BEGIN, LINE_LOOP, 
 VERTEX, 24.0562, 14.5276, 15.3788, 
@@ -5796,6 +5796,7 @@ VERTEX, 21.646, 14.3465, 10.0832,
 VERTEX, 21.6822, 13.6561, 9.71502, 
 END, 
 ]
-cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_2ifb_padded_wireframe_contacts_ligand_receptor')
+cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_2ifb_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
+cmd.do('group cg_base_draw_2ifb, base_draw_2ifb_*');

@@ -350,8 +350,16 @@ then
 		else
 			cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_padded.py"
 		fi
+		
+		echo "cmd.do('group cg_${GRAPHICS_BASENAME}, ${GRAPHICS_BASENAME}_*');"
 	} \
 	| egrep -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
+	| sed 's/_vdW_balls_atoms_ligand/_vdW_balls/g' \
+	| sed 's/_padded_faces_contacts_ligand_receptor/_padded_iface/g' \
+	| sed 's/_padded_wireframe_contacts_cap_ligand/_padded_cap/g' \
+	| sed 's/_padded_wireframe_contacts_ligand_receptor/_padded_wireframe/g' \
+	| sed 's/_in_SAS_faces_contacts_ligand_receptor/_in_SAS_iface/g' \
+	| sed 's/_in_SAS_wireframe_contacts_ligand_receptor/_in_SAS_wireframe/g' \
 	> "$OUTPUT_GRAPHICS_FILE"
 fi
 
