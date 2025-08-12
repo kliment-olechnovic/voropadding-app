@@ -171,3 +171,26 @@ and the following visualization:
 
 ![](./doc/visual_example3.png)
 
+
+## Example processing multiple structures
+
+Running
+
+```bash
+find "./tests/input/" -type f -name '*.pdb' \
+| ./voropadding \
+  --input _list \
+  --max-padding 2 \
+  --processors 4
+```
+
+gives
+
+```
+input     volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
+1cnw.pdb  12.1109              2.44327             3704.75        745.389            683.218          305.078              233.052        305.902     27           2
+3akm.pdb  5.20473              1.88035             1963.64        999.65             625.55           531.63               37.8047        377.28      31           2
+5zyg.pdb  4.49694              2.10274             1695.58        1027.75            674.586          488.766              41.4579        377.052     30           2
+2ifb.pdb  4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263     18           2
+```
+

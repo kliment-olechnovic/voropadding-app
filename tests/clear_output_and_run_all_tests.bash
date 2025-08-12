@@ -26,4 +26,14 @@ done \
   --print-mode v \
   --graphics-mode detailed
 
-  
+for MPADDING in 1 2 3
+do
+	find "./input/" -type f -name '*.pdb' \
+	| ../voropadding \
+	  --input _list \
+	  --max-padding ${MPADDING} \
+	  --output-table-file "./output/all_global_scores_table_max_padding_${MPADDING}.txt" \
+	  --processors 4
+done
+
+

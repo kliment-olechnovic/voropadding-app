@@ -1,0 +1,5 @@
+input     volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
+1cnw.pdb  21.4992              3.31846             6576.64        1012.39            683.218          305.078              233.052        305.902     27           3
+3akm.pdb  8.32737              2.1249              3141.75        1129.66            625.55           531.63               37.8047        377.28      31           3
+5zyg.pdb  5.36958              2.37163             2024.61        1159.17            674.586          488.766              41.4579        377.052     30           3
+2ifb.pdb  4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263     18           3

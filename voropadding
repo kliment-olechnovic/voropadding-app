@@ -8,7 +8,7 @@ cat >&2 << 'EOF'
 and then calculates the total available volume and the total interface area of the padded part.
 
 Options:
-    --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
+    --input                       string  *  input file path for a molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
     --max-padding                 number     maximum number of padding layers, default is 2
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
@@ -17,6 +17,7 @@ Options:
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
+    --processors                  number     maximum number of processors to run in parallel, default is 1
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -32,6 +33,7 @@ Examples:
 
     voropadding --input "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
 
+    find ./models/ -type f -name '*.pdb' | ./voropadding --input _list --processors 4 --output-table-file ./table.txt
 EOF
 exit 1
 }
@@ -60,6 +62,7 @@ OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
 GRAPHICS_MODE="basic"
 PRINT_MODE="h"
+MAX_PROCESSORS="1"
 HELP_MODE="false"
 
 while [[ $# > 0 ]]
@@ -104,6 +107,10 @@ do
 		PRINT_MODE="$OPTARG"
 		shift
 		;;
+	--processors)
+		MAX_PROCESSORS="$OPTARG"
+		shift
+		;;
 	-h|--help)
 		HELP_MODE="true"
 		;;
@@ -125,7 +132,7 @@ then
 	exit 1
 fi
 
-if [ ! -s "$INPUT_FILE" ]
+if [ "$INPUT_FILE" != "_list" ] && [ ! -s "$INPUT_FILE" ]
 then
 	echo >&2 "Error: no input file '$INPUT_FILE'"
 	exit 1
@@ -155,6 +162,48 @@ then
 	exit 1
 fi
 
+readonly TMPLDIR=$(mktemp -d)
+trap "rm -r $TMPLDIR" EXIT
+
+################################################################################
+
+if [ "$INPUT_FILE" == "_list" ]
+then
+	cat | egrep . | sort | uniq > "$TMPLDIR/input_list"
+	
+	if [ ! -s "$TMPLDIR/input_list" ]
+	then
+		echo >&2 "Error: no stdin data"
+		exit 1
+	fi
+	
+	mkdir -p "$TMPLDIR/children_tables"
+	
+	cat "$TMPLDIR/input_list" \
+	| awk -v outdir="$TMPLDIR/children_tables" '{print "--input " $1 " --output-table-file " outdir "/" NR ".txt"}' \
+	| xargs -L 1 -P "$MAX_PROCESSORS" "$ZEROARG" "${ALLARGS[@]}" --print-mode v --processors 1
+	
+	find "$TMPLDIR/children_tables" -type f -not -empty \
+	| sort \
+	| xargs -L 1 cat \
+	| awk '{if(NR==1 || $1!="input") print $0}' \
+	| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults "js:voronota_tournament_sort('-input-file _stdin -output-file _stdout -columns volume_freedom_coef -multipliers 1 -tolerances 0.0');" \
+	| column -t \
+	> "$TMPLDIR/full_output_table"
+	
+	if [ -n "$OUTPUT_TABLE_FILE" ] && [ "$OUTPUT_TABLE_FILE" != "_stdout" ]
+	then
+		mkdir -p "$(dirname "$OUTPUT_TABLE_FILE")"
+		cat "$TMPLDIR/full_output_table" > "$OUTPUT_TABLE_FILE"
+	else
+		cat "$TMPLDIR/full_output_table"
+	fi
+	
+	exit 0
+fi
+
+################################################################################
+
 GRAPHICS_PARAMETERS_INVDW=""
 GRAPHICS_PARAMETERS_INSAS=""
 GRAPHICS_PARAMETERS_PADDED=""
@@ -165,9 +214,6 @@ then
 	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title ${GRAPHICS_BASENAME}_in_SAS --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand --graphics-color-faces 0x00FF00 --graphics-color-wireframe 0x007777"
 	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
-
-readonly TMPLDIR=$(mktemp -d)
-trap "rm -r $TMPLDIR" EXIT
 
 cat "$INPUT_FILE" > "${TMPLDIR}/rawinput"
 
