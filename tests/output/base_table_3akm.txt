@@ -1,2 +1,2 @@
-input     volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
-3akm.pdb  5.20473              1.88035             1963.64        999.65             625.55           531.63               37.8047        377.28      31           2
+input_complex  restrictions  focus_atoms_count  max_padding  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw
+3akm.pdb       0             31                 2            5.20473              1.88035             1963.64        999.65             625.55           531.63               37.8047        377.28

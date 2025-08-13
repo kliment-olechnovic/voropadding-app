@@ -82,7 +82,7 @@ Examples:
 
 # Output examples
 
-## Basic example
+## Basic example when input is a single complex structure
 
 Running
 
@@ -96,7 +96,10 @@ Running
 gives
 
 ```
-input                5zyg.pdb
+input_complex        5zyg.pdb
+restrictions         0
+focus_atoms_count    30
+max_padding          2
 volume_freedom_coef  4.49694
 iface_freedom_coef   2.10274
 volume_padded        1695.58
@@ -105,13 +108,14 @@ volume_unpadded      674.586
 iface_area_unpadded  488.766
 sasa_unpadded        41.4579
 volume_vdw           377.052
-atoms_count          30
-max_padding          2
 ```
 
 The values are explained below:
 
-* `input` is the basename of the provided input file
+* `input_complex` is the basename of the provided input complex file
+* `restrictions` is the number of restrictions applied based on the `--restriction-centers` option 
+* `focus_atoms_count` is the number of the focus atoms (usually - ligand atoms)
+* `max_padding` is the maximum number of padding layers considered by the scripts
 * `volume_freedom_coef` is the ratio value = `(volume_padded/volume_vdw)`
 * `iface_freedom_coef`  is the ratio value = `(iface_area_padded/iface_area_unpadded)`
 * `volume_padded` is the Voronoi tessellation-based volume of the ligand together with the padding
@@ -120,8 +124,6 @@ The values are explained below:
 * `iface_area_unpadded` is the total area of the Voronoi faces (constrained inside the solvent-accessible surface) between the receptor and the ligand
 * `volume_unpadded` is the total solvent accessible surface area of the Voronoi cells of the lingand atoms constrained inside the solvent-accessible surface
 * `volume_vdw` is the volume of the union of the ligand atomic balls of van der Waals radii
-* `atoms_count` is the number of the ligand atoms
-* `max_padding` is the maximum number of padding layers considered by the scripts
 
 The generated `vis_5zyg.py` can be opened in PyMol by its own, or together with the input structure:
 
@@ -157,7 +159,10 @@ Below is an example of running with additional restrictions:
 which produces the following output:
 
 ```bash
-input                1cnw.pdb
+input_complex        1cnw.pdb
+restrictions         1
+focus_atoms_count    26
+max_padding          2
 volume_freedom_coef  5.67799
 iface_freedom_coef   1.91799
 volume_padded        1728.97
@@ -166,8 +171,6 @@ volume_unpadded      683.218
 iface_area_unpadded  305.078
 sasa_unpadded        233.052
 volume_vdw           304.504
-atoms_count          26
-max_padding          2
 ```
 
 and the following visualization:
@@ -175,7 +178,7 @@ and the following visualization:
 ![](./doc/visual_example3.png)
 
 
-## Example processing multiple structures
+## Example processing multiple complex structures
 
 Running
 
@@ -190,10 +193,10 @@ find "./tests/input/" -type f -name '*.pdb' \
 gives
 
 ```
-input     volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding
-1cnw.pdb  12.1109              2.44327             3704.75        745.389            683.218          305.078              233.052        305.902     27           2
-3akm.pdb  5.20473              1.88035             1963.64        999.65             625.55           531.63               37.8047        377.28      31           2
-5zyg.pdb  4.49694              2.10274             1695.58        1027.75            674.586          488.766              41.4579        377.052     30           2
-2ifb.pdb  4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263     18           2
+input_complex  restrictions  focus_atoms_count  max_padding  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw
+1cnw.pdb       0             27                 2            12.1109              2.44327             3704.75        745.389            683.218          305.078              233.052        305.902
+3akm.pdb       0             31                 2            5.20473              1.88035             1963.64        999.65             625.55           531.63               37.8047        377.28
+5zyg.pdb       0             30                 2            4.49694              2.10274             1695.58        1027.75            674.586          488.766              41.4579        377.052
+2ifb.pdb       0             18                 2            4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263
 ```
 

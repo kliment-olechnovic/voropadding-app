@@ -9,10 +9,12 @@ and then calculates the total available volume and the total interface area of t
 
 Options:
     --input-complex               string     input file path for a complex molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
-    --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --selection                   string     for complex input, selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --input-receptor              string     input file path for receptor, must be in PDB or mmCIF format
+    --input-ligand                string     input file path for ligand, must be in SDF format
     --max-padding                 number     maximum number of padding layers, default is 2
-    --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
-    --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
+    --restriction-centers         string     for complex input, selection of the atoms to be used as centers of the restriction spheres, default is ''
+    --restriction-radius          number     for complex input, radius to be used for the restriction spheres (if any), default is 10.0
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
@@ -55,10 +57,12 @@ then
 fi
 
 INPUT_COMPLEX=""
-SELECTION="(not [-protein])"
+SELECTION=""
+INPUT_RECEPTOR=""
+INPUT_LIGAND=""
 MAX_PADDING="2"
 RESTRICTION_CENTERS=""
-RESTRICTION_RADIUS="10.0"
+RESTRICTION_RADIUS=""
 OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
 GRAPHICS_MODE="basic"
@@ -78,6 +82,14 @@ do
 		;;
 	--selection)
 		SELECTION="$OPTARG"
+		shift
+		;;
+	--input-receptor)
+		INPUT_RECEPTOR="$OPTARG"
+		shift
+		;;
+	--input-ligand)
+		INPUT_LIGAND="$OPTARG"
 		shift
 		;;
 	--max-padding)
@@ -127,22 +139,77 @@ then
 	print_help_and_exit
 fi
 
-if [ -z "$INPUT_COMPLEX" ]
+if [ -z "$INPUT_COMPLEX" ] && [ -z "$INPUT_RECEPTOR" ] && [ -z "$INPUT_LIGAND" ]
 then
-	echo >&2 "Error: no input file provided"
+	echo >&2 "Error: no input provided"
 	exit 1
 fi
 
-if [ "$INPUT_COMPLEX" != "_list" ] && [ ! -s "$INPUT_COMPLEX" ]
+if [ -n "$INPUT_COMPLEX" ]
 then
-	echo >&2 "Error: no input file '$INPUT_COMPLEX'"
-	exit 1
-fi
-
-if [ -z "$SELECTION" ]
-then
-	echo >&2 "Error: no selection provided"
-	exit 1
+	if [ -n "$INPUT_RECEPTOR" ] || [ -n "$INPUT_LIGAND" ]
+	then
+		echo >&2 "Error: conflict with input arguments, both complex and receptor and/or ligand provided"
+		exit 1
+	fi
+	
+	if [ "$INPUT_COMPLEX" != "_list" ] && [ ! -s "$INPUT_COMPLEX" ]
+	then
+		echo >&2 "Error: no input complex file '$INPUT_COMPLEX'"
+		exit 1
+	fi
+	
+	if [ -z "$SELECTION" ]
+	then
+		SELECTION="(not [-protein])"
+	fi
+	
+	if [ -z "$RESTRICTION_RADIUS" ]
+	then
+		RESTRICTION_RADIUS="10.0"
+	fi
+else
+	if [ -z "$INPUT_RECEPTOR" ]
+	then
+		echo >&2 "Error: no input receptor file provided"
+		exit 1
+	fi
+	
+	if [ -z "$INPUT_LIGAND" ]
+	then
+		echo >&2 "Error: no input ligand file provided"
+		exit 1
+	fi
+	
+	if [ -n "$SELECTION" ]
+	then
+		echo >&2 "Error: conflict with input arguments, selection provided without the input complex"
+		exit 1
+	fi
+	
+	if [ -n "$RESTRICTION_CENTERS" ]
+	then
+		echo >&2 "Error: conflict with input arguments, restriction centers provided without the input complex"
+		exit 1
+	fi
+	
+	if [ -n "$RESTRICTION_RADIUS" ]
+	then
+		echo >&2 "Error: conflict with input arguments, restriction radius provided without the input complex"
+		exit 1
+	fi
+	
+	if [ ! -s "$INPUT_RECEPTOR" ]
+	then
+		echo >&2 "Error: no input receptor file '$INPUT_RECEPTOR'"
+		exit 1
+	fi
+	
+	if [ ! -s "$INPUT_LIGAND" ]
+	then
+		echo >&2 "Error: no input ligand file '$INPUT_LIGAND'"
+		exit 1
+	fi
 fi
 
 if [ -z "$MAX_PADDING" ] || [ "$MAX_PADDING" -lt "1" ] || [ "$MAX_PADDING" -gt "10" ]
@@ -187,7 +254,7 @@ then
 	find "$TMPLDIR/children_tables" -type f -not -empty \
 	| sort \
 	| xargs -L 1 cat \
-	| awk '{if(NR==1 || $1!="input") print $0}' \
+	| awk '{if(NR==1 || $1!="input_complex") print $0}' \
 	| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults "js:voronota_tournament_sort('-input-file _stdin -output-file _stdout -columns volume_freedom_coef -multipliers 1 -tolerances 0.0');" \
 	| column -t \
 	> "$TMPLDIR/full_output_table"
@@ -216,11 +283,15 @@ then
 	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
 
-cat "$INPUT_COMPLEX" > "${TMPLDIR}/rawinput"
+################################################################################
 
-cd "$TMPLDIR"
+if [ -n "$INPUT_COMPLEX" ]
+then
+	cat "$INPUT_COMPLEX" > "${TMPLDIR}/rawinput"
+	
+	cd "$TMPLDIR"
 
-{
+	{
 cat << EOF
 var params={}
 params.selection='$SELECTION';
@@ -231,18 +302,18 @@ cat << 'EOF'
 voronota_setup_defaults("-no-load-voromqa-potentials", "-no-load-more-atom-types", "-no-load-mock-voromqa-potential");
 EOF
 
-if [[ "$INPUT_COMPLEX" == *.cif ]] || [[ "$INPUT_COMPLEX" == *.CIF ]]
-then
+		if [[ "$INPUT_COMPLEX" == *.cif ]] || [[ "$INPUT_COMPLEX" == *.CIF ]]
+		then
 cat << 'EOF'
 voronota_import_mmcif("-files", ["./rawinput"], "-include-heteroatoms");
 voronota_assert_full_success("Failed to input mmCIF file");
 EOF
-else
+		else
 cat << 'EOF'
 voronota_import("-file", "./rawinput", "-include-heteroatoms");
 voronota_assert_full_success("Failed to input PDB file");
 EOF
-fi
+		fi
 
 cat << 'EOF'
 voronota_delete_tags_of_atoms("-tags", "het");
@@ -256,32 +327,93 @@ if(params.restriction_selection)
 	voronota_assert_full_success("Failed to write restriction");
 }
 EOF
-} \
-| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults
+	} \
+	| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults
 
-if [ ! -s "ligand.pa" ]
-then
-	echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '${SELECTION}'"
-	exit 1
+	if [ ! -s "ligand.pa" ]
+	then
+		echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '${SELECTION}'"
+		exit 1
+	fi
+	
+	if [ ! -s "receptor.pa" ]
+	then
+		echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '(not (${SELECTION}))'"
+		exit 1
+	fi
+	
+	if [ -n "$RESTRICTION_CENTERS" ] && [ ! -s "restriction.pa" ]
+	then
+		echo >&2 "Error: failed to select restriction center atoms from '${INPUT_COMPLEX}' using selection '(not (${RESTRICTION_CENTERS}))'"
+		exit 1
+	fi
+	
+	{
+		cat "receptor.pa" | awk '{print "receptor " $2 " " $3 " " $4 " " $5}'
+		cat "ligand.pa" | awk '{print "ligand " $2 " " $3 " " $4 " " $5}'
+	} \
+	> "./inputballs"
+else
+	cat "$INPUT_RECEPTOR" > "${TMPLDIR}/rawreceptor"
+	cat "$INPUT_LIGAND" > "${TMPLDIR}/rawligand"
+	
+	cd "$TMPLDIR"
+	
+	cat "./rawligand" | head -4 | tail -1 | 
+
+	{
+cat << 'EOF'
+voronota_setup_defaults("-no-load-voromqa-potentials", "-no-load-more-atom-types", "-no-load-mock-voromqa-potential");
+EOF
+
+		if [[ "$INPUT_COMPLEX" == *.cif ]] || [[ "$INPUT_COMPLEX" == *.CIF ]]
+		then
+cat << 'EOF'
+voronota_import_mmcif("-files", ["./rawreceptor"], "-include-heteroatoms");
+voronota_assert_full_success("Failed to input mmCIF file");
+EOF
+		else
+cat << 'EOF'
+voronota_import("-file", "./rawreceptor", "-include-heteroatoms");
+voronota_assert_full_success("Failed to input PDB file");
+EOF
+		fi
+
+cat << 'EOF'
+voronota_delete_tags_of_atoms("-tags", "het");
+voronota_export_atoms("-file", "receptor.pa");
+EOF
+	} \
+	| ${SCRIPTDIR}/tools/voronota-js --no-setup-defaults
+	
+	if [ ! -s "receptor.pa" ]
+	then
+		echo >&2 "Error: failed to process the input receptor file '${INPUT_RECEPTOR}'"
+		exit 1
+	fi
+	
+	cat "./rawligand" \
+	| awk 'c==0 && /V2000/ { c = int(substr($0,1,3)); next } c>0 { print "ligand " $1 " " $2 " " $3 " 1.7"; if (++i==c) exit }' \
+	> ./ligandballs
+	
+	if [ ! -s "ligandballs" ]
+	then
+		echo >&2 "Error: failed to process the input ligand file '${INPUT_LIGAND}'"
+		exit 1
+	fi
+	
+	{
+		cat "receptor.pa" | awk '{print "receptor " $2 " " $3 " " $4 " " $5}'
+		cat "ligandballs" | awk '{print "ligand " $2 " " $3 " " $4 " " $5}'
+	} \
+	> "./inputballs"
 fi
 
-if [ ! -s "receptor.pa" ]
+if [ ! -s "inputballs" ]
 then
-	echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '(not (${SELECTION}))'"
+	echo >&2 "Error: failed to process the input atoms"
 	exit 1
 fi
-
-if [ -n "$RESTRICTION_CENTERS" ] && [ ! -s "restriction.pa" ]
-then
-	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_COMPLEX}' using selection '(not (${RESTRICTION_CENTERS}))'"
-	exit 1
-fi
-
-{
-cat "receptor.pa" | awk '{print "receptor " $2 " " $3 " " $4 " " $5}'
-cat "ligand.pa" | awk '{print "ligand " $2 " " $3 " " $4 " " $5}'
-} \
-> "./inputballs"
 
 cat "./inputballs" \
 | ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INVDW} \
@@ -361,9 +493,27 @@ read LIGAND_IFACE_AREA_PADDED LIGAND_IFACE_BOUNDARY_PADDED <<< "$(cat ./tessella
 VOLUME_FREEDOM_COEF="$(echo ${LIGAND_VOLUME_PADDED} ${LIGAND_VOLUME_INVDW} | awk '{print ($1/$2)}')"
 IFACE_FREEDOM_COEF="$(echo ${LIGAND_IFACE_AREA_PADDED} ${LIGAND_IFACE_AREA_INSAS} | awk '{print ($1/$2)}')"
 
+HEADER_ROW_START="input"
+CONTENT_ROW_START="unknown"
+
+if [ -n "$INPUT_COMPLEX" ]
+then
+	HEADER_ROW_START="input_complex  restrictions"
+	CONTENT_ROW_START="$(basename ${INPUT_COMPLEX})"
+	if [ -s "restriction.pa" ]
+	then
+		CONTENT_ROW_START="${CONTENT_ROW_START}  $(cat 'restriction.pa' | wc -l)"
+	else
+		CONTENT_ROW_START="${CONTENT_ROW_START}  0"
+	fi
+else
+	HEADER_ROW_START="input_receptor input_ligand"
+	CONTENT_ROW_START="$(basename ${INPUT_RECEPTOR})  $(basename ${INPUT_LIGAND})"
+fi
+
 {
-echo "input  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding"
-echo "$(basename ${INPUT_COMPLEX})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
+echo "${HEADER_ROW_START}  focus_atoms_count  max_padding  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw"
+echo "${CONTENT_ROW_START}  $LIGAND_ATOMS_COUNT  $MAX_PADDING  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW"
 } \
 | column -t \
 > "./final_result.txt"
