@@ -523,6 +523,9 @@ then
 					if [ -s "./padding_draw_sub_${PD_LAYER}_${PD_ROOTID}" ]
 					then
 						awk -v s=${PD_ROOTID} 'BEGIN{srand(s); print "COLOR, " rand() ", " rand() ", " rand() ","}'
+						[ "$PD_NAME" == "ligand" ] && echo "ALPHA, 1.0,"
+						[ "$PD_NAME" == "padding" ] && echo "ALPHA, 1.0,"
+						[ "$PD_NAME" == "cap" ] && echo "ALPHA, 0.5,"
 						cat "./padding_draw_sub_${PD_LAYER}_${PD_ROOTID}"
 					fi
 				done
