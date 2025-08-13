@@ -1,0 +1,2 @@
+input_receptor     input_ligand     focus_atoms_count  max_padding  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw
+5zyg_receptor.pdb  5zyg_ligand.sdf  30                 2            4.7036               2.11183             1674.57        1029.31            658.051          487.403              41.8394        356.019
