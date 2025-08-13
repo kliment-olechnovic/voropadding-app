@@ -8,7 +8,7 @@ cat >&2 << 'EOF'
 and then calculates the total available volume and the total interface area of the padded part.
 
 Options:
-    --input                       string  *  input file path for a molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
+    --input-complex               string     input file path for a complex molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
     --max-padding                 number     maximum number of padding layers, default is 2
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
@@ -25,15 +25,16 @@ Standard output:
 
 Examples:
 
-    voropadding --input "./complex.pdb"
+    voropadding --input-complex "./complex.pdb"
 
-    voropadding --input "./complex.pdb" --selection '[-chain B]' 
+    voropadding --input-complex "./complex.pdb" --selection '[-chain B]' 
 
-    voropadding --input "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
+    voropadding --input-complex "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
 
-    voropadding --input "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
+    voropadding --input-complex "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
 
-    find ./models/ -type f -name '*.pdb' | ./voropadding --input _list --processors 4 --output-table-file ./table.txt
+    find ./models/ -type f -name '*.pdb' | ./voropadding --input-complex _list --processors 4 --output-table-file ./table.txt
+
 EOF
 exit 1
 }
@@ -53,7 +54,7 @@ then
 	print_help_and_exit
 fi
 
-INPUT_FILE=""
+INPUT_COMPLEX=""
 SELECTION="(not [-protein])"
 MAX_PADDING="2"
 RESTRICTION_CENTERS=""
@@ -71,8 +72,8 @@ do
 	OPTARG="$2"
 	shift
 	case $OPTION in
-	--input)
-		INPUT_FILE="$OPTARG"
+	--input-complex)
+		INPUT_COMPLEX="$OPTARG"
 		shift
 		;;
 	--selection)
@@ -126,15 +127,15 @@ then
 	print_help_and_exit
 fi
 
-if [ -z "$INPUT_FILE" ]
+if [ -z "$INPUT_COMPLEX" ]
 then
 	echo >&2 "Error: no input file provided"
 	exit 1
 fi
 
-if [ "$INPUT_FILE" != "_list" ] && [ ! -s "$INPUT_FILE" ]
+if [ "$INPUT_COMPLEX" != "_list" ] && [ ! -s "$INPUT_COMPLEX" ]
 then
-	echo >&2 "Error: no input file '$INPUT_FILE'"
+	echo >&2 "Error: no input file '$INPUT_COMPLEX'"
 	exit 1
 fi
 
@@ -167,7 +168,7 @@ trap "rm -r $TMPLDIR" EXIT
 
 ################################################################################
 
-if [ "$INPUT_FILE" == "_list" ]
+if [ "$INPUT_COMPLEX" == "_list" ]
 then
 	cat | egrep . | sort | uniq > "$TMPLDIR/input_list"
 	
@@ -180,7 +181,7 @@ then
 	mkdir -p "$TMPLDIR/children_tables"
 	
 	cat "$TMPLDIR/input_list" \
-	| awk -v outdir="$TMPLDIR/children_tables" '{print "--input " $1 " --output-table-file " outdir "/" NR ".txt"}' \
+	| awk -v outdir="$TMPLDIR/children_tables" '{print "--input-complex " $1 " --output-table-file " outdir "/" NR ".txt"}' \
 	| xargs -L 1 -P "$MAX_PROCESSORS" "$ZEROARG" "${ALLARGS[@]}" --print-mode v --processors 1
 	
 	find "$TMPLDIR/children_tables" -type f -not -empty \
@@ -215,7 +216,7 @@ then
 	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
 
-cat "$INPUT_FILE" > "${TMPLDIR}/rawinput"
+cat "$INPUT_COMPLEX" > "${TMPLDIR}/rawinput"
 
 cd "$TMPLDIR"
 
@@ -230,7 +231,7 @@ cat << 'EOF'
 voronota_setup_defaults("-no-load-voromqa-potentials", "-no-load-more-atom-types", "-no-load-mock-voromqa-potential");
 EOF
 
-if [[ "$INPUT_FILE" == *.cif ]] || [[ "$INPUT_FILE" == *.CIF ]]
+if [[ "$INPUT_COMPLEX" == *.cif ]] || [[ "$INPUT_COMPLEX" == *.CIF ]]
 then
 cat << 'EOF'
 voronota_import_mmcif("-files", ["./rawinput"], "-include-heteroatoms");
@@ -260,19 +261,19 @@ EOF
 
 if [ ! -s "ligand.pa" ]
 then
-	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '${SELECTION}'"
+	echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '${SELECTION}'"
 	exit 1
 fi
 
 if [ ! -s "receptor.pa" ]
 then
-	echo >&2 "Error: failed to select atoms from '${INPUT_FILE}' using selection '(not (${SELECTION}))'"
+	echo >&2 "Error: failed to select atoms from '${INPUT_COMPLEX}' using selection '(not (${SELECTION}))'"
 	exit 1
 fi
 
 if [ -n "$RESTRICTION_CENTERS" ] && [ ! -s "restriction.pa" ]
 then
-	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_FILE}' using selection '(not (${RESTRICTION_CENTERS}))'"
+	echo >&2 "Error: failed to select restriction center atoms from '${INPUT_COMPLEX}' using selection '(not (${RESTRICTION_CENTERS}))'"
 	exit 1
 fi
 
@@ -362,7 +363,7 @@ IFACE_FREEDOM_COEF="$(echo ${LIGAND_IFACE_AREA_PADDED} ${LIGAND_IFACE_AREA_INSAS
 
 {
 echo "input  volume_freedom_coef  iface_freedom_coef  volume_padded  iface_area_padded  volume_unpadded  iface_area_unpadded  sasa_unpadded  volume_vdw  atoms_count  max_padding"
-echo "$(basename ${INPUT_FILE})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
+echo "$(basename ${INPUT_COMPLEX})  $VOLUME_FREEDOM_COEF  $IFACE_FREEDOM_COEF  $LIGAND_VOLUME_PADDED  $LIGAND_IFACE_AREA_PADDED  $LIGAND_VOLUME_INSAS  $LIGAND_IFACE_AREA_INSAS  $LIGAND_AREA_INSAS  $LIGAND_VOLUME_INVDW  $LIGAND_ATOMS_COUNT  $MAX_PADDING"
 } \
 | column -t \
 > "./final_result.txt"

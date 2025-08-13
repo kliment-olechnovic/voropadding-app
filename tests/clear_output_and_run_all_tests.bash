@@ -14,11 +14,11 @@ do
 	BASENAME="$(basename ${INFILE} .pdb)"
 	echo "${INFILE} --output-table-file ./output/base_table_${BASENAME}.txt --output-graphics-file ./output/base_draw_${BASENAME}.py"
 done \
-| xargs -L 1 -P 4 ../voropadding --input
+| xargs -L 1 -P 4 ../voropadding --input-complex
 
 
 ../voropadding \
-  --input "./input/1cnw.pdb" \
+  --input-complex "./input/1cnw.pdb" \
   --restriction-centers '[-aname ZN]' \
   --restriction-radius 16.0 \
   --output-table-file "./output/restricted_table_1cnw.txt" \
@@ -30,7 +30,7 @@ for MPADDING in 1 2 3
 do
 	find "./input/" -type f -name '*.pdb' \
 	| ../voropadding \
-	  --input _list \
+	  --input-complex _list \
 	  --max-padding ${MPADDING} \
 	  --output-table-file "./output/all_global_scores_table_max_padding_${MPADDING}.txt" \
 	  --processors 4

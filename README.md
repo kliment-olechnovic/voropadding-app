@@ -51,7 +51,7 @@ The following is the help message output:
 and then calculates the total available volume and the total interface area of the padded part.
 
 Options:
-    --input                       string  *  input file path for a molecule, must be in PDB or mmCIF format
+    --input-complex               string     input file path for a complex molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
     --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
     --max-padding                 number     maximum number of padding layers, default is 2
     --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
@@ -60,6 +60,7 @@ Options:
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
+    --processors                  number     maximum number of processors to run in parallel, default is 1
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -67,13 +68,15 @@ Standard output:
 
 Examples:
 
-    voropadding --input "./complex.pdb"
+    voropadding --input-complex "./complex.pdb"
 
-    voropadding --input "./complex.pdb" --selection '[-chain B]' 
+    voropadding --input-complex "./complex.pdb" --selection '[-chain B]' 
 
-    voropadding --input "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
+    voropadding --input-complex "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
 
-    voropadding --input "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
+    voropadding --input-complex "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
+
+    find ./models/ -type f -name '*.pdb' | ./voropadding --input-complex _list --processors 4 --output-table-file ./table.txt
 
 ```
 
@@ -85,7 +88,7 @@ Running
 
 ```bash
 ./voropadding \
-  --input "./tests/input/5zyg.pdb" \
+  --input-complex "./tests/input/5zyg.pdb" \
   --output-graphics-file "./vis_5zyg.py" \
   --print-mode v
 ```
@@ -143,7 +146,7 @@ Below is an example of running with additional restrictions:
 
 ```bash
 ./voropadding \
-  --input "./tests/input/1cnw.pdb" \
+  --input-complex "./tests/input/1cnw.pdb" \
   --selection '[-chain A -rnum 555]' \
   --restriction-centers '[-chain A -rnum 262 -aname ZN]' \
   --restriction-radius 16.0 \
@@ -179,7 +182,7 @@ Running
 ```bash
 find "./tests/input/" -type f -name '*.pdb' \
 | ./voropadding \
-  --input _list \
+  --input-complex _list \
   --max-padding 2 \
   --processors 4
 ```
