@@ -52,7 +52,7 @@ Standard input stream:
       c) mmCIF file
 
 Standard output stream:
-    A tab-separeated table of receptor and expanded ligand balls, where every row is 'chainID x y z radius'
+    A tab-separeated table of receptor and expanded ligand balls, where every row is 'groupID x y z radius'
 
 Standard error output stream:
     Log, error messages
@@ -210,6 +210,22 @@ public:
 	}
 };
 
+struct SphereType
+{
+	int category;
+	int layer;
+	int direct_parent;
+	int root_parent;
+
+	SphereType(const int category, const int layer, const int direct_parent, const int root_parent) :
+			category(category),
+			layer(layer),
+			direct_parent(direct_parent),
+			root_parent(root_parent)
+	{
+	}
+};
+
 }
 
 int main(const int argc, const char** argv)
@@ -272,7 +288,7 @@ int main(const int argc, const char** argv)
 	std::vector<voronotalt::SimpleSphere> all_input_spheres;
 	all_input_spheres.reserve(spheres_input_result.spheres.size());
 
-	std::vector<int> all_input_sphere_types;
+	std::vector<SphereType> all_input_sphere_types;
 	all_input_sphere_types.reserve(spheres_input_result.spheres.size());
 
 	for(std::size_t i=0;i<spheres_input_result.sphere_labels.size();i++)
@@ -280,7 +296,7 @@ int main(const int argc, const char** argv)
 		if(spheres_input_result.sphere_labels[i].chain_id!=app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
-			all_input_sphere_types.push_back(0);
+			all_input_sphere_types.push_back(SphereType(0, 0, i, i));
 		}
 	}
 
@@ -291,7 +307,7 @@ int main(const int argc, const char** argv)
 		if(spheres_input_result.sphere_labels[i].chain_id==app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
-			all_input_sphere_types.push_back(1);
+			all_input_sphere_types.push_back(SphereType(1, 0, i, i));
 		}
 	}
 
@@ -350,7 +366,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
 			{
 				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
-				if(cs.sas_area>0.0 && all_input_sphere_types[i]<3)
+				if(cs.sas_area>0.0 && all_input_sphere_types[i].category<3)
 				{
 					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
 					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
@@ -384,12 +400,12 @@ int main(const int argc, const char** argv)
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				all_input_sphere_types.push_back(2);
+				all_input_sphere_types.push_back(SphereType(2, expansion_iteration, (i+number_of_first_spheres), all_input_sphere_types[i+number_of_first_spheres].root_parent));
 				number_of_added_ligand_spheres++;
 			}
 		}
 
-		if(number_of_added_ligand_spheres==0)
+		if(number_of_added_ligand_spheres==0 || expansion_iteration==app_params.max_expansion_layers)
 		{
 			expansion_terminated_at_iteration=expansion_iteration;
 		}
@@ -437,7 +453,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
 			{
 				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
-				if(cs.sas_area>0.0 && all_input_sphere_types[i]<3)
+				if(cs.sas_area>0.0 && all_input_sphere_types[i].category<3)
 				{
 					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
 					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
@@ -465,7 +481,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				all_input_sphere_types.push_back(3);
+				all_input_sphere_types.push_back(SphereType(3, expansion_terminated_at_iteration+1, (i+number_of_first_spheres), all_input_sphere_types[i+number_of_first_spheres].root_parent));
 			}
 		}
 	}
@@ -474,15 +490,15 @@ int main(const int argc, const char** argv)
 	{
 		voronotalt::SimpleSphere& s=all_input_spheres[i];
 		s.r-=app_params.expansion_probe;
-		const int input_sphere_type=all_input_sphere_types[i];
-		const std::string chain_name=(input_sphere_type==0 ? "receptor" : (input_sphere_type==1 ? "ligand" : (input_sphere_type==2 ? "ligand" : "cap")));
+		const SphereType& st=all_input_sphere_types[i];
+		const std::string chain_name=(st.category==0 ? "receptor" : (st.category==1 ? "ligand" : (st.category==2 ? "ligand" : "cap")));
 		if(chain_name=="ligand")
 		{
 			s.r+=app_params.radii_inflation;
 		}
 		if(app_params.output_for_voronota_gl)
 		{
-			std::cout << "c<" << chain_name << ">r<" << i << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . .\n";
+			std::cout << "c<" << chain_name << ">r<" << st.root_parent << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . tf=" << st.layer << "\n";
 		}
 		else
 		{
