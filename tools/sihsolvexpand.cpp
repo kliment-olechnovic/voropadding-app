@@ -40,6 +40,8 @@ Options:
     --pdb-or-mmcif-heteroatoms                                  flag to include heteroatoms when reading input in PDB or mmCIF format, enabled by default
     --pdb-or-mmcif-hydrogens                                    flag to include hydrogen atoms when reading input in PDB or mmCIF format
     --pdb-or-mmcif-join-models                                  flag to join multiple models into an assembly when reading input in PDB or mmCIF format
+    --output-for-voronota-gl                                    flag to output balls in .pa format for Voronota-GL
+    --calc-detailed-volumes                                     flag to calculate and output per-ball volumes
     --help | -h                                                 flag to print help (for basic options) to stderr and exit
 
 Standard input stream:
@@ -52,7 +54,7 @@ Standard input stream:
       c) mmCIF file
 
 Standard output stream:
-    A tab-separeated table of receptor and expanded ligand balls, where every row is 'groupID x y z radius'
+    A tab-separeated table of receptor and expanded ligand balls, where every row is 'chainID x y z radius'
 
 Standard error output stream:
     Log, error messages
@@ -77,6 +79,7 @@ public:
 	bool pdb_or_mmcif_hydrogens;
 	bool pdb_or_mmcif_as_assembly;
 	bool output_for_voronota_gl;
+	bool calc_detailed_volumes;
 	bool read_successfuly;
 	std::string chain_of_interest;
 	std::vector<voronotalt::SimpleSphere> bounding_spheres_;
@@ -92,6 +95,7 @@ public:
 		pdb_or_mmcif_hydrogens(false),
 		pdb_or_mmcif_as_assembly(false),
 		output_for_voronota_gl(false),
+		calc_detailed_volumes(false),
 		read_successfuly(false)
 	{
 	}
@@ -183,6 +187,10 @@ public:
 				{
 					output_for_voronota_gl=opt.is_flag_and_true();
 				}
+				else if(opt.name=="calc-detailed-volumes" && opt.is_flag())
+				{
+					calc_detailed_volumes=opt.is_flag_and_true();
+				}
 				else if(opt.name.empty())
 				{
 					error_log_for_options_parsing << "Error: unnamed command line arguments detected.\n";
@@ -210,18 +218,20 @@ public:
 	}
 };
 
-struct SphereType
+struct SphereInfo
 {
 	int category;
 	int layer;
 	int direct_parent;
 	int root_parent;
+	double volume;
 
-	SphereType(const int category, const int layer, const int direct_parent, const int root_parent) :
+	SphereInfo(const int category, const int layer, const int direct_parent, const int root_parent) :
 			category(category),
 			layer(layer),
 			direct_parent(direct_parent),
-			root_parent(root_parent)
+			root_parent(root_parent),
+			volume(0.0)
 	{
 	}
 };
@@ -288,15 +298,15 @@ int main(const int argc, const char** argv)
 	std::vector<voronotalt::SimpleSphere> all_input_spheres;
 	all_input_spheres.reserve(spheres_input_result.spheres.size());
 
-	std::vector<SphereType> all_input_sphere_types;
-	all_input_sphere_types.reserve(spheres_input_result.spheres.size());
+	std::vector<SphereInfo> all_input_sphere_traits;
+	all_input_sphere_traits.reserve(spheres_input_result.spheres.size());
 
 	for(std::size_t i=0;i<spheres_input_result.sphere_labels.size();i++)
 	{
 		if(spheres_input_result.sphere_labels[i].chain_id!=app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
-			all_input_sphere_types.push_back(SphereType(0, 0, i, i));
+			all_input_sphere_traits.push_back(SphereInfo(0, 0, i, i));
 		}
 	}
 
@@ -307,7 +317,7 @@ int main(const int argc, const char** argv)
 		if(spheres_input_result.sphere_labels[i].chain_id==app_params.chain_of_interest)
 		{
 			all_input_spheres.push_back(spheres_input_result.spheres[i]);
-			all_input_sphere_types.push_back(SphereType(1, 0, i, i));
+			all_input_sphere_traits.push_back(SphereInfo(1, 0, i, i));
 		}
 	}
 
@@ -366,7 +376,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
 			{
 				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
-				if(cs.sas_area>0.0 && all_input_sphere_types[i].category<3)
+				if(cs.sas_area>0.0 && all_input_sphere_traits[i].category<3)
 				{
 					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
 					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
@@ -400,7 +410,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				all_input_sphere_types.push_back(SphereType(2, expansion_iteration, (i+number_of_first_spheres), all_input_sphere_types[i+number_of_first_spheres].root_parent));
+				all_input_sphere_traits.push_back(SphereInfo(2, expansion_iteration, (i+number_of_first_spheres), all_input_sphere_traits[i+number_of_first_spheres].root_parent));
 				number_of_added_ligand_spheres++;
 			}
 		}
@@ -453,7 +463,7 @@ int main(const int argc, const char** argv)
 			for(std::size_t i=number_of_first_spheres;i<result.cells_summaries.size();i++)
 			{
 				const voronotalt::RadicalTessellation::CellContactDescriptorsSummary& cs=result.cells_summaries[i];
-				if(cs.sas_area>0.0 && all_input_sphere_types[i].category<3)
+				if(cs.sas_area>0.0 && all_input_sphere_traits[i].category<3)
 				{
 					const voronotalt::SimpleSphere& sa=all_input_spheres[i];
 					const std::set< std::pair<voronotalt::Float, voronotalt::UnsignedInt> >& neighbors=graph[i-number_of_first_spheres];
@@ -481,8 +491,39 @@ int main(const int argc, const char** argv)
 			for(std::size_t j=0;j<per_input_pseudosolvent_spheres[i].size();j++)
 			{
 				all_input_spheres.push_back(per_input_pseudosolvent_spheres[i][j]);
-				all_input_sphere_types.push_back(SphereType(3, expansion_terminated_at_iteration+1, (i+number_of_first_spheres), all_input_sphere_types[i+number_of_first_spheres].root_parent));
+				all_input_sphere_traits.push_back(SphereInfo(3, expansion_terminated_at_iteration+1, (i+number_of_first_spheres), all_input_sphere_traits[i+number_of_first_spheres].root_parent));
 			}
+		}
+	}
+
+	for(std::size_t i=0;i<all_input_spheres.size();i++)
+	{
+		const SphereInfo& st=all_input_sphere_traits[i];
+		if(st.category==1 || st.category==2)
+		{
+			all_input_spheres[i].r+=app_params.radii_inflation;
+		}
+	}
+
+	if(app_params.calc_detailed_volumes)
+	{
+		voronotalt::RadicalTessellation::Result result;
+
+		voronotalt::RadicalTessellation::construct_full_tessellation(all_input_spheres, result);
+
+		std::clog << "Stage final volumes tessellation summary:" << std::endl;
+		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_basic(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
+		voronotalt::PrintingCustomTypes::print_tessellation_full_construction_result_log_about_cells(result, voronotalt::RadicalTessellation::GroupedResult(), voronotalt::RadicalTessellation::GroupedResult(), std::clog);
+
+		if(result.cells_summaries.size()!=all_input_spheres.size())
+		{
+			std::cerr << "Error: failed to summarize cells\n";
+			return 1;
+		}
+
+		for(std::size_t i=0;i<result.cells_summaries.size();i++)
+		{
+			all_input_sphere_traits[i].volume=result.cells_summaries[i].sas_inside_volume;
 		}
 	}
 
@@ -490,15 +531,11 @@ int main(const int argc, const char** argv)
 	{
 		voronotalt::SimpleSphere& s=all_input_spheres[i];
 		s.r-=app_params.expansion_probe;
-		const SphereType& st=all_input_sphere_types[i];
+		const SphereInfo& st=all_input_sphere_traits[i];
 		const std::string chain_name=(st.category==0 ? "receptor" : (st.category==1 ? "ligand" : (st.category==2 ? "ligand" : "cap")));
-		if(chain_name=="ligand")
-		{
-			s.r+=app_params.radii_inflation;
-		}
 		if(app_params.output_for_voronota_gl)
 		{
-			std::cout << "c<" << chain_name << ">r<" << st.root_parent << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . tf=" << st.layer << "\n";
+			std::cout << "c<" << chain_name << ">r<" << st.root_parent << ">R<XXX>A<XXX> " << s.p.x << " " << s.p.y << " " << s.p.z << " " << s.r << " . tf=" << st.layer << ";vol=" << st.volume << "\n";
 		}
 		else
 		{
