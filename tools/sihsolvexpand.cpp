@@ -54,7 +54,7 @@ Standard input stream:
       c) mmCIF file
 
 Standard output stream:
-    A tab-separeated table of receptor and expanded ligand balls, where every row is 'chainID x y z radius'
+    A tab-separeated table of receptor and expanded ligand balls, where every row is 'chainID x y z radius layer root_parent_id volume'
 
 Standard error output stream:
     Log, error messages
@@ -225,13 +225,15 @@ struct SphereInfo
 	int direct_parent;
 	int root_parent;
 	double volume;
+	double uninflated_radius;
 
 	SphereInfo(const int category, const int layer, const int direct_parent, const int root_parent) :
 			category(category),
 			layer(layer),
 			direct_parent(direct_parent),
 			root_parent(root_parent),
-			volume(0.0)
+			volume(0.0),
+			uninflated_radius(0.0)
 	{
 	}
 };
@@ -498,10 +500,12 @@ int main(const int argc, const char** argv)
 
 	for(std::size_t i=0;i<all_input_spheres.size();i++)
 	{
-		const SphereInfo& st=all_input_sphere_traits[i];
+		voronotalt::SimpleSphere& s=all_input_spheres[i];
+		SphereInfo& st=all_input_sphere_traits[i];
+		st.uninflated_radius=s.r;
 		if(st.category==1 || st.category==2)
 		{
-			all_input_spheres[i].r+=app_params.radii_inflation;
+			s.r+=app_params.radii_inflation;
 		}
 	}
 
@@ -530,8 +534,9 @@ int main(const int argc, const char** argv)
 	for(std::size_t i=0;i<all_input_spheres.size();i++)
 	{
 		voronotalt::SimpleSphere& s=all_input_spheres[i];
+		SphereInfo& st=all_input_sphere_traits[i];
 		s.r-=app_params.expansion_probe;
-		const SphereInfo& st=all_input_sphere_traits[i];
+		st.uninflated_radius-=app_params.expansion_probe;
 		const std::string chain_name=(st.category==0 ? "receptor" : (st.category==1 ? "ligand" : (st.category==2 ? "ligand" : "cap")));
 		if(app_params.output_for_voronota_gl)
 		{
@@ -539,7 +544,7 @@ int main(const int argc, const char** argv)
 		}
 		else
 		{
-			std::cout << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << "\n";
+			std::cout << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << st.layer << "\t" << (st.root_parent-number_of_first_spheres+1) << "\t" << st.volume << "\t" << st.uninflated_radius << "\n";
 		}
 	}
 

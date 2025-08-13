@@ -26,6 +26,13 @@ done \
   --print-mode v \
   --graphics-mode detailed
 
+../voropadding \
+  --input-receptor "./input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
+  --output-table-file "./output/receptor_ligand_table_5zyg.txt" \
+  --output-graphics-file "./output/receptor_ligand_draw_5zyg.py" \
+  --print-mode v
+
 for MPADDING in 1 2 3
 do
 	find "./input/complex/" -type f -name '*.pdb' \
@@ -34,12 +41,14 @@ do
 	  --max-padding ${MPADDING} \
 	  --output-table-file "./output/all_global_scores_table_max_padding_${MPADDING}.txt" \
 	  --processors 4
+
+	../voropadding \
+	  --input-receptor "./input/receptor_ligand/5zyg_receptor.pdb" \
+	  --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
+	  --max-padding ${MPADDING} \
+	  --output-table-file "./output/receptor_ligand_table_5zyg_max_padding_${MPADDING}.txt" \
+	  --output-padding-file "./output/receptor_ligand_padding_table_5zyg_max_padding_${MPADDING}.tsv"
 done
 
-../voropadding \
-  --input-receptor "./input/receptor_ligand/5zyg_receptor.pdb" \
-  --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
-  --output-table-file "./output/receptor_ligand_table_5zyg.txt" \
-  --output-graphics-file "./output/receptor_ligand_draw_5zyg.py" \
-  --print-mode v
+
 

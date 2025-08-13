@@ -233,3 +233,26 @@ Note, that the results slightly a bit from the example with the complex `5zyg.pd
 This is because in the receptor+ligand mode every ligand atom is assigned the same van der Waals radius of 1.7 angstroms,
 while in the complex mode the radii are assigned in the default Voronota mode that considers different atom types.
 
+## Example producing a detailed padding table
+
+Running
+
+```bash
+./voropadding \
+  --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
+  --output-padding-file "./receptor_ligand_padding_table_5zyg_max_padding_3.tsv" \
+  --max-padding 3 \
+  --print-mode v
+```
+
+will generate a tab-separated table file `./receptor_ligand_padding_table_5zyg_max_padding_3.tsv`. You can look at the table [here](./tests/output/receptor_ligand_padding_table_5zyg_max_padding_3.tsv).
+
+The generated table describes real and virtual balls with values in the following eight columns:
+
+* `category` is the ball class, can be 'ligand' (for the real input ligand atoms) or 'padding' (for the virtual padding balls) or 'cap' (for the virtual capping balls that are not included in the volume calculation)
+* `padding_layer` is the number of the padding layer
+* `root_id` is the number of the topologically closest real ligand atom - the minimal number is 1
+* `x`, `y`, `z`, `r` are the center coordinates and the radius of the ball
+* `volume` is the volume of the Voronoi cell of the ball - such volumes are non-overlapping, and, therefore, can be summed
+
