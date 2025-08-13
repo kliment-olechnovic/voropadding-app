@@ -88,7 +88,7 @@ Running
 
 ```bash
 ./voropadding \
-  --input-complex "./tests/input/5zyg.pdb" \
+  --input-complex "./tests/input/complex/5zyg.pdb" \
   --output-graphics-file "./vis_5zyg.py" \
   --print-mode v
 ```
@@ -148,7 +148,7 @@ Below is an example of running with additional restrictions:
 
 ```bash
 ./voropadding \
-  --input-complex "./tests/input/1cnw.pdb" \
+  --input-complex "./tests/input/complex/1cnw.pdb" \
   --selection '[-chain A -rnum 555]' \
   --restriction-centers '[-chain A -rnum 262 -aname ZN]' \
   --restriction-radius 16.0 \
@@ -183,7 +183,7 @@ and the following visualization:
 Running
 
 ```bash
-find "./tests/input/" -type f -name '*.pdb' \
+find "./tests/input/complex/" -type f -name '*.pdb' \
 | ./voropadding \
   --input-complex _list \
   --max-padding 2 \
@@ -199,4 +199,37 @@ input_complex  restrictions  focus_atoms_count  max_padding  volume_freedom_coef
 5zyg.pdb       0             30                 2            4.49694              2.10274             1695.58        1027.75            674.586          488.766              41.4579        377.052
 2ifb.pdb       0             18                 2            4.07774              1.77804             1032.74        695.279            464.589          391.037              31.2068        253.263
 ```
+
+## Basic example when input is a pair of a receptor and a ligand structures
+
+Running
+
+```bash
+./voropadding \
+  --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
+  --output-graphics-file "./vis_5zyg_receptor_ligand.py" \
+  --print-mode v
+```
+
+gives
+
+```
+input_receptor       5zyg_receptor.pdb
+input_ligand         5zyg_ligand.sdf
+focus_atoms_count    30
+max_padding          2
+volume_freedom_coef  4.7036
+iface_freedom_coef   2.11183
+volume_padded        1674.57
+iface_area_padded    1029.31
+volume_unpadded      658.051
+iface_area_unpadded  487.403
+sasa_unpadded        41.8394
+volume_vdw           356.019
+```
+
+Note, that the results slightly a bit from the example with the complex `5zyg.pdb` input.
+This is because in the receptor+ligand mode every ligand atom is assigned the same van der Waals radius of 1.7 angstroms,
+while in the complex mode the radii are assigned in the default Voronota mode that considers different atom types.
 
