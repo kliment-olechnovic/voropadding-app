@@ -52,12 +52,16 @@ and then calculates the total available volume and the total interface area of t
 
 Options:
     --input-complex               string     input file path for a complex molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
-    --selection                   string     selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --selection                   string     for complex input, selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --input-receptor              string     input file path for receptor, must be in PDB or mmCIF format
+    --input-ligand                string     input file path for ligand, must be in SDF format
     --max-padding                 number     maximum number of padding layers, default is 2
-    --restriction-centers         string     selection of the atoms to be used as centers of the restriction spheres, default is ''
-    --restriction-radius          number     radius to be used for the restriction spheres (if any), default is 10.0
+    --restriction-centers         string     for complex input, selection of the atoms to be used as centers of the restriction spheres, default is ''
+    --restriction-radius          number     for complex input, radius to be used for the restriction spheres (if any), default is 10.0
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
+    --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
@@ -241,12 +245,12 @@ Running
 ./voropadding \
   --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
   --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
-  --output-padding-file "./receptor_ligand_padding_table_5zyg_max_padding_3.tsv" \
   --max-padding 3 \
-  --print-mode v
+  --print-mode v \
+  --output-padding-file "./padding_5zyg.tsv"
 ```
 
-will generate a tab-separated table file `./receptor_ligand_padding_table_5zyg_max_padding_3.tsv`. You can look at the table [here](./tests/output/receptor_ligand_padding_table_5zyg_max_padding_3.tsv).
+will generate a tab-separated table file `./padding_5zyg.tsv`. You can look at the table [here](./tests/output/receptor_ligand_padding_table_5zyg_max_padding_3.tsv).
 
 The generated table describes real and virtual balls with values in the following eight columns:
 
@@ -255,4 +259,29 @@ The generated table describes real and virtual balls with values in the followin
 * `root_id` is the number of the topologically closest real ligand atom - the minimal number is 1
 * `x`, `y`, `z`, `r` are the center coordinates and the radius of the ball
 * `volume` is the volume of the Voronoi cell of the ball - such volumes are non-overlapping, and, therefore, can be summed
+
+## Example producing a detailed padding table with visualizations
+
+Running
+
+```bash
+./voropadding \
+  --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
+  --max-padding 3 \
+  --print-mode v \
+  --output-padding-file "./padding_5zyg.tsv" \
+  --output-padding-draw-file "./draw_padding_5zyg.py" \
+  --output-graphics-file "./vis_5zyg.py"
+```
+
+will generate both a padding details table `padding_5zyg.tsv`,
+a PyMol script `draw_padding_5zyg.py` to visualize the padding table,
+and a PyMol script `vis_5zyg.py` to visualize the padding volume and interfaces.
+
+The generated visualization scripts can be used as follows:
+
+```bash
+pymol "./tests/input/receptor_ligand/5zyg_receptor.pdb" "./vis_5zyg.py" "./draw_padding_5zyg.py"
+```
 

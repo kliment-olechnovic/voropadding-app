@@ -29599,4 +29599,4 @@ END,
 cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'restricted_draw_1cnw_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
-cmd.do('group cg_restricted_draw_1cnw, restricted_draw_1cnw_*');
+cmd.do('group cg_restricted_draw_1cnw, restricted_draw_1cnw_*')

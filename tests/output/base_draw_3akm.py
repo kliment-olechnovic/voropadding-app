@@ -22993,4 +22993,4 @@ END,
 cmd.load_cgo(cgo_graphics_list_wireframe_contacts_ligand_receptor, 'base_draw_3akm_padded_wireframe')
 cmd.set('two_sided_lighting', 1)
 cmd.set('cgo_line_width', 3)
-cmd.do('group cg_base_draw_3akm, base_draw_3akm_*');
+cmd.do('group cg_base_draw_3akm, base_draw_3akm_*')

@@ -18,6 +18,7 @@ Options:
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
@@ -67,6 +68,7 @@ RESTRICTION_RADIUS=""
 OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
 OUTPUT_PADDING_FILE=""
+OUTPUT_PADDING_DRAW_FILE=""
 GRAPHICS_MODE="basic"
 PRINT_MODE="h"
 MAX_PROCESSORS="1"
@@ -116,6 +118,10 @@ do
 		;;
 	--output-padding-file)
 		OUTPUT_PADDING_FILE="$OPTARG"
+		shift
+		;;
+	--output-padding-draw-file)
+		OUTPUT_PADDING_DRAW_FILE="$OPTARG"
 		shift
 		;;
 	--graphics-mode)
@@ -233,6 +239,12 @@ fi
 if [ "$PRINT_MODE" != "h" ] && [ "$PRINT_MODE" != "v" ]
 then
 	echo >&2 "Error: invalid printing mode '$PRINT_MODE', must be 'h' or 'v'"
+	exit 1
+fi
+
+if [ -n "$OUTPUT_PADDING_DRAW_FILE" ] && [ -z "$OUTPUT_PADDING_FILE" ]
+then
+	echo >&2 "Error: padding drawing output file specified without specifying the padding table output file"
 	exit 1
 fi
 
@@ -486,6 +498,42 @@ then
 		echo >&2 "Error: failed to generate a padding table"
 		exit 1
 	fi
+	
+	if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
+	then
+		PADDING_DRAW_BASENAME="$(basename ${OUTPUT_PADDING_DRAW_FILE} .py | tr '.' '_')"
+		
+		cat "./padding_table.tsv" | tail -n +2 | awk '{print $1 " " $2}' | sort | uniq | sort -n -k2,2 > "./padding_draw_unique_layers"
+		cat "./padding_table.tsv" | tail -n +2 | awk '{print $3}' | sort | uniq > "./padding_draw_unique_root_ids"
+		
+		{
+			echo 'from pymol.cgo import *'
+			echo 'from pymol import cmd'
+			cat "./padding_draw_unique_layers" \
+			| while read -r PD_NAME PD_LAYER
+			do
+				echo "cgo_${PD_NAME}_layer_${PD_LAYER} = ["
+				cat "./padding_draw_unique_root_ids" \
+				| while read -r PD_ROOTID
+				do
+					cat "./padding_table.tsv" \
+					| awk -v pdl=${PD_LAYER} -v pdrid=${PD_ROOTID} '{if($2==pdl && $3==pdrid){print "SPHERE, ", $4 ", " $5 ", " $6 ", " $7 ","}}' \
+					> "./padding_draw_sub_${PD_LAYER}_${PD_ROOTID}"
+
+					if [ -s "./padding_draw_sub_${PD_LAYER}_${PD_ROOTID}" ]
+					then
+						awk -v s=${PD_ROOTID} 'BEGIN{srand(s); print "COLOR, " rand() ", " rand() ", " rand() ","}'
+						cat "./padding_draw_sub_${PD_LAYER}_${PD_ROOTID}"
+					fi
+				done
+				echo "]"
+				echo "cmd.load_cgo(cgo_${PD_NAME}_layer_${PD_LAYER}, '${PADDING_DRAW_BASENAME}__${PD_NAME}_layer_${PD_LAYER}')"
+				echo "cmd.do('group cg_${PADDING_DRAW_BASENAME}, ${PADDING_DRAW_BASENAME}__*')"
+				echo "cmd.do('zoom')"
+			done
+		} \
+		> "./padding_draw.py"
+	fi
 else
 	cat "./inputballs" \
 	| ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
@@ -592,7 +640,7 @@ then
 			cat "${TMPLDIR}/draw_invdw.py" "${TMPLDIR}/draw_padded.py"
 		fi
 		
-		echo "cmd.do('group cg_${GRAPHICS_BASENAME}, ${GRAPHICS_BASENAME}_*');"
+		echo "cmd.do('group cg_${GRAPHICS_BASENAME}, ${GRAPHICS_BASENAME}_*')"
 	} \
 	| egrep -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
 	| sed 's/_vdW_balls_atoms_ligand/_vdW_balls/g' \
@@ -602,5 +650,11 @@ then
 	| sed 's/_in_SAS_faces_contacts_ligand_receptor/_in_SAS_iface/g' \
 	| sed 's/_in_SAS_wireframe_contacts_ligand_receptor/_in_SAS_wireframe/g' \
 	> "$OUTPUT_GRAPHICS_FILE"
+fi
+
+if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
+then
+	mkdir -p "$(dirname ${OUTPUT_PADDING_DRAW_FILE})"
+	cp "${TMPLDIR}/padding_draw.py" "$OUTPUT_PADDING_DRAW_FILE"
 fi
 

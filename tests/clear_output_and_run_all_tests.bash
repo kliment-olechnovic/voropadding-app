@@ -47,7 +47,8 @@ do
 	  --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
 	  --max-padding ${MPADDING} \
 	  --output-table-file "./output/receptor_ligand_table_5zyg_max_padding_${MPADDING}.txt" \
-	  --output-padding-file "./output/receptor_ligand_padding_table_5zyg_max_padding_${MPADDING}.tsv"
+	  --output-padding-file "./output/receptor_ligand_padding_table_5zyg_max_padding_${MPADDING}.tsv" \
+	  --output-padding-draw-file "./output/receptor_ligand_padding_table_5zyg_max_padding_${MPADDING}_draw.py"
 done
 
 
