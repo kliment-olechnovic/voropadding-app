@@ -255,7 +255,7 @@ trap "rm -r $TMPLDIR" EXIT
 
 if [ "$INPUT_COMPLEX" == "_list" ]
 then
-	cat | egrep . | sort | uniq > "$TMPLDIR/input_list"
+	cat | grep -E . | sort | uniq > "$TMPLDIR/input_list"
 	
 	if [ ! -s "$TMPLDIR/input_list" ]
 	then
@@ -645,7 +645,7 @@ then
 		
 		echo "cmd.do('group cg_${GRAPHICS_BASENAME}, ${GRAPHICS_BASENAME}_*')"
 	} \
-	| egrep -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
+	| grep -E -v '^cmd\.load_cgo\(cgo_graphics_list_faces_contacts_cap_ligand' \
 	| sed 's/_vdW_balls_atoms_ligand/_vdW_balls/g' \
 	| sed 's/_padded_faces_contacts_ligand_receptor/_padded_iface/g' \
 	| sed 's/_padded_wireframe_contacts_cap_ligand/_padded_cap/g' \
