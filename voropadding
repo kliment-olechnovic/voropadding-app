@@ -537,6 +537,22 @@ then
 		} \
 		> "./padding_draw.py"
 	fi
+	
+	cd - &> /dev/null
+
+	if [ -n "$OUTPUT_PADDING_FILE" ]
+	then
+		mkdir -p "$(dirname ${OUTPUT_PADDING_FILE})"
+		cp "${TMPLDIR}/padding_table.tsv" "$OUTPUT_PADDING_FILE"
+	fi
+	
+	if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
+	then
+		mkdir -p "$(dirname ${OUTPUT_PADDING_DRAW_FILE})"
+		cp "${TMPLDIR}/padding_draw.py" "$OUTPUT_PADDING_DRAW_FILE"
+	fi
+	
+	cd "$TMPLDIR"
 else
 	cat "./inputballs" \
 	| ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
@@ -609,12 +625,6 @@ echo "${CONTENT_ROW_START}  $LIGAND_ATOMS_COUNT  $MAX_PADDING  $VOLUME_FREEDOM_C
 
 cd - &> /dev/null
 
-if [ -n "$OUTPUT_PADDING_FILE" ]
-then
-	mkdir -p "$(dirname ${OUTPUT_PADDING_FILE})"
-	cp "${TMPLDIR}/padding_table.tsv" "$OUTPUT_PADDING_FILE"
-fi
-
 if [ -n "$OUTPUT_TABLE_FILE" ] && [ "$OUTPUT_TABLE_FILE" != "_stdout" ]
 then
 	mkdir -p "$(dirname ${OUTPUT_TABLE_FILE})"
@@ -653,11 +663,5 @@ then
 	| sed 's/_in_SAS_faces_contacts_ligand_receptor/_in_SAS_iface/g' \
 	| sed 's/_in_SAS_wireframe_contacts_ligand_receptor/_in_SAS_wireframe/g' \
 	> "$OUTPUT_GRAPHICS_FILE"
-fi
-
-if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
-then
-	mkdir -p "$(dirname ${OUTPUT_PADDING_DRAW_FILE})"
-	cp "${TMPLDIR}/padding_draw.py" "$OUTPUT_PADDING_DRAW_FILE"
 fi
 
