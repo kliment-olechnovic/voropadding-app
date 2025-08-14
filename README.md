@@ -286,3 +286,28 @@ The generated visualization scripts can be used as follows:
 pymol "./tests/input/receptor_ligand/5zyg_receptor.pdb" "./vis_5zyg.py" "./draw_padding_5zyg.py"
 ```
 
+## Performance-focused example for producing a detailed padding table without any other output
+
+Running
+
+```bash
+./voropadding \
+  --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
+  --max-padding 3 \
+  --output-padding-file "./padding_5zyg.tsv" \
+  --only-padding-table
+```
+
+will only generate a padding details table `padding_5zyg.tsv`.
+
+The usage of the `--only-padding-table` flag can significantly decrease the overall execution time.
+
+### More performance tips
+
+If you care about performance a lot, consider rebuilding the binary executables to enable you CPU architecture-specific optimizations by running the following commands:
+
+```bash
+./tools/build-sihsolvexpand.bash ofast
+./tools/build-voronota-lt.bash ofast
+```
