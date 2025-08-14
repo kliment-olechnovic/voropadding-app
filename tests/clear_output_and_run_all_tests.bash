@@ -7,6 +7,8 @@ cd "$SCRIPTDIR"
 rm -rf "./output"
 mkdir -p "./output"
 
+../voropadding -h &> "./output/help_message.txt"
+
 find ./input/complex/ -type f \
 | grep -v '1cnw' \
 | while read -r INFILE
@@ -51,5 +53,11 @@ do
 	  --output-padding-draw-file "./output/receptor_ligand_padding_table_5zyg_max_padding_${MPADDING}_draw.py"
 done
 
+../voropadding \
+  --input-receptor "./input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
+  --max-padding 3 \
+  --output-padding-file "./output/receptor_ligand_padding_table_5zyg_max_padding_3_only.tsv" \
+  --only-padding-table
 
 

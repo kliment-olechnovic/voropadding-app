@@ -1,0 +1,37 @@
+
+'voropadding' script pads (fills up the space around) the selected part of the input molecule (e.g. a ligand)
+and then calculates the total available volume and the total interface area of the padded part.
+
+Options:
+    --input-complex               string     input file path for a complex molecule (in PDB or mmCIF format), or '_list' to read paths from stdin
+    --selection                   string     for complex input, selection of the structural part to pad and analyze, default is '(not [-protein])'
+    --input-receptor              string     input file path for receptor, must be in PDB or mmCIF format
+    --input-ligand                string     input file path for ligand, must be in SDF format
+    --max-padding                 number     maximum number of padding layers, default is 2
+    --restriction-centers         string     for complex input, selection of the atoms to be used as centers of the restriction spheres, default is ''
+    --restriction-radius          number     for complex input, radius to be used for the restriction spheres (if any), default is 10.0
+    --output-table-file           string     output table file path, default is '_stdout' to print to stdout
+    --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
+    --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
+    --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
+    --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
+    --processors                  number     maximum number of processors to run in parallel, default is 1
+    --only-padding-table                     flag to only output a table of the annotated padding points
+    --help | -h                              flag to display help message and exit
+
+Standard output:
+    space-separated table of values
+
+Examples:
+
+    voropadding --input-complex "./complex.pdb"
+
+    voropadding --input-complex "./complex.pdb" --selection '[-chain B]' 
+
+    voropadding --input-complex "./complex.pdb" --restriction-centers '[-chain A -rnum 30 -aname CB]' --restriction-radius 12.0
+
+    voropadding --input-complex "./complex.pdb" --max-padding 3 --output-graphics-file "./padded.py"
+
+    find ./models/ -type f -name '*.pdb' | ./voropadding --input-complex _list --processors 4 --output-table-file ./table.txt
+

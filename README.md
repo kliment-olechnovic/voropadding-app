@@ -65,6 +65,7 @@ Options:
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
+    --only-padding-table                     flag to only output a table of the annotated padding points
     --help | -h                              flag to display help message and exit
 
 Standard output:

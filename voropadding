@@ -22,6 +22,7 @@ Options:
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
+    --only-padding-table                     flag to only output a table of the annotated padding points
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -72,6 +73,7 @@ OUTPUT_PADDING_DRAW_FILE=""
 GRAPHICS_MODE="basic"
 PRINT_MODE="h"
 MAX_PROCESSORS="1"
+ONLY_PADDING_TABLE="false"
 HELP_MODE="false"
 
 while [[ $# > 0 ]]
@@ -135,6 +137,9 @@ do
 	--processors)
 		MAX_PROCESSORS="$OPTARG"
 		shift
+		;;
+	--only-padding-table)
+		ONLY_PADDING_TABLE="true"
 		;;
 	-h|--help)
 		HELP_MODE="true"
@@ -248,6 +253,12 @@ then
 	exit 1
 fi
 
+if [ "$ONLY_PADDING_TABLE" == "true" ] && [ -z "$OUTPUT_PADDING_FILE" ]
+then
+	echo >&2 "Error: conflict with input arguments, the flag to only output a padding table is enabled without providing the padding table output file path"
+	exit 1
+fi
+
 readonly TMPLDIR=$(mktemp -d)
 trap "rm -r $TMPLDIR" EXIT
 
@@ -286,19 +297,6 @@ then
 	fi
 	
 	exit 0
-fi
-
-################################################################################
-
-GRAPHICS_PARAMETERS_INVDW=""
-GRAPHICS_PARAMETERS_INSAS=""
-GRAPHICS_PARAMETERS_PADDED=""
-if [ -n "$OUTPUT_GRAPHICS_FILE" ]
-then
-	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
-	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title ${GRAPHICS_BASENAME}_vdW --graphics-restrict-representations balls --graphics-restrict-chains ligand --graphics-color-balls 0x00FFFF"
-	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title ${GRAPHICS_BASENAME}_in_SAS --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand --graphics-color-faces 0x00FF00 --graphics-color-wireframe 0x007777"
-	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
 fi
 
 ################################################################################
@@ -433,33 +431,7 @@ then
 	exit 1
 fi
 
-cat "./inputballs" \
-| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INVDW} \
-  --probe 0.001 \
-  --print-contacts-chain-level \
-  --print-cells-chain-level \
-2> /dev/null \
-> "./tessellation_summary_invdw"
-
-if [ ! -s "tessellation_summary_invdw" ]
-then
-	echo >&2 "Error: failed to calculate tessellation summary constrained by the van der Waals surface"
-	exit 1
-fi
-
-cat "./inputballs" \
-| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INSAS} \
-  --probe 1.4 \
-  --print-contacts-chain-level \
-  --print-cells-chain-level \
-2> /dev/null \
-> "./tessellation_summary_insas"
-
-if [ ! -s "tessellation_summary_insas" ]
-then
-	echo >&2 "Error: failed to calculate basic tessellation summary constrained by the SAS"
-	exit 1
-fi
+################################################################################
 
 PARAMS_FOR_BOUNDING_SPHERES=""
 
@@ -497,6 +469,21 @@ then
 	then
 		echo >&2 "Error: failed to generate a padding table"
 		exit 1
+	fi
+	
+	if [ -n "$OUTPUT_PADDING_FILE" ]
+	then
+		cd - &> /dev/null
+		
+		mkdir -p "$(dirname ${OUTPUT_PADDING_FILE})"
+		cp "${TMPLDIR}/padding_table.tsv" "$OUTPUT_PADDING_FILE"
+		
+		cd "$TMPLDIR"
+	fi
+	
+	if [ "$ONLY_PADDING_TABLE" == "true" ]
+	then
+		exit 0
 	fi
 	
 	if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
@@ -538,21 +525,15 @@ then
 		> "./padding_draw.py"
 	fi
 	
-	cd - &> /dev/null
-
-	if [ -n "$OUTPUT_PADDING_FILE" ]
-	then
-		mkdir -p "$(dirname ${OUTPUT_PADDING_FILE})"
-		cp "${TMPLDIR}/padding_table.tsv" "$OUTPUT_PADDING_FILE"
-	fi
-	
 	if [ -n "$OUTPUT_PADDING_DRAW_FILE" ]
 	then
+		cd - &> /dev/null
+		
 		mkdir -p "$(dirname ${OUTPUT_PADDING_DRAW_FILE})"
 		cp "${TMPLDIR}/padding_draw.py" "$OUTPUT_PADDING_DRAW_FILE"
+		
+		cd "$TMPLDIR"
 	fi
-	
-	cd "$TMPLDIR"
 else
 	cat "./inputballs" \
 	| ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
@@ -565,6 +546,49 @@ fi
 if [ ! -s "padded_complex" ]
 then
 	echo >&2 "Error: failed to generate a padded structure"
+	exit 1
+fi
+
+################################################################################
+
+GRAPHICS_PARAMETERS_INVDW=""
+GRAPHICS_PARAMETERS_INSAS=""
+GRAPHICS_PARAMETERS_PADDED=""
+if [ -n "$OUTPUT_GRAPHICS_FILE" ]
+then
+	GRAPHICS_BASENAME="$(basename ${OUTPUT_GRAPHICS_FILE} .py | tr '.' '_')"
+	GRAPHICS_PARAMETERS_INVDW="--graphics-output-file ./draw_invdw.py --graphics-title ${GRAPHICS_BASENAME}_vdW --graphics-restrict-representations balls --graphics-restrict-chains ligand --graphics-color-balls 0x00FFFF"
+	GRAPHICS_PARAMETERS_INSAS="--graphics-output-file ./draw_insas.py --graphics-title ${GRAPHICS_BASENAME}_in_SAS --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand --graphics-color-faces 0x00FF00 --graphics-color-wireframe 0x007777"
+	GRAPHICS_PARAMETERS_PADDED="--graphics-output-file ./draw_padded.py --graphics-title ${GRAPHICS_BASENAME}_padded --graphics-restrict-representations wireframe faces --graphics-restrict-chain-pairs receptor ligand cap ligand --graphics-color-faces 0xFFFF00 --graphics-color-wireframe 0x777777"
+fi
+
+################################################################################
+
+cat "./inputballs" \
+| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INVDW} \
+  --probe 0.001 \
+  --print-contacts-chain-level \
+  --print-cells-chain-level \
+2> /dev/null \
+> "./tessellation_summary_invdw"
+
+if [ ! -s "tessellation_summary_invdw" ]
+then
+	echo >&2 "Error: failed to calculate tessellation summary constrained by the van der Waals surface"
+	exit 1
+fi
+
+cat "./inputballs" \
+| ${SCRIPTDIR}/tools/voronota-lt ${GRAPHICS_PARAMETERS_INSAS} \
+  --probe 1.4 \
+  --print-contacts-chain-level \
+  --print-cells-chain-level \
+2> /dev/null \
+> "./tessellation_summary_insas"
+
+if [ ! -s "tessellation_summary_insas" ]
+then
+	echo >&2 "Error: failed to calculate basic tessellation summary constrained by the SAS"
 	exit 1
 fi
 
