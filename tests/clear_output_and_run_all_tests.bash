@@ -61,3 +61,15 @@ done
   --only-padding-table
 
 
+echo "Comparing the computed test output with the checkpoint test output:"
+
+ALTERED_FILES_COUNT="$(git status -s ./output/ 2>&1 | wc -l)"
+
+if [ "$ALTERED_FILES_COUNT" -gt "0" ]
+then
+	echo "${ALTERED_FILES_COUNT} tests output files changed:"
+	git status -s ./output/
+else
+	echo "No test output files changed."
+fi
+
