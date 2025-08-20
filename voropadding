@@ -18,11 +18,12 @@ Options:
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-edges-file   string     output file path for the padding graph edges, default is ''
     --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
-    --only-padding-table                     flag to only output a table of the annotated padding points
+    --only-padding-table                     flag to only output a table of the annotated padding points (and edges file, if specified)
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -69,6 +70,7 @@ RESTRICTION_RADIUS=""
 OUTPUT_TABLE_FILE="_stdout"
 OUTPUT_GRAPHICS_FILE=""
 OUTPUT_PADDING_FILE=""
+OUTPUT_PADDING_EDGES_FILE=""
 OUTPUT_PADDING_DRAW_FILE=""
 GRAPHICS_MODE="basic"
 PRINT_MODE="h"
@@ -120,6 +122,10 @@ do
 		;;
 	--output-padding-file)
 		OUTPUT_PADDING_FILE="$OPTARG"
+		shift
+		;;
+	--output-padding-edges-file)
+		OUTPUT_PADDING_EDGES_FILE="$OPTARG"
 		shift
 		;;
 	--output-padding-draw-file)
@@ -443,24 +449,37 @@ fi
 
 if [ -n "$OUTPUT_PADDING_FILE" ]
 then
+	FLAG_FOR_DETAILED_CONTACTS="false"
+	
+	if [ -n "$OUTPUT_PADDING_EDGES_FILE" ]
+	then
+		FLAG_FOR_DETAILED_CONTACTS="true"
+	fi
+
 	cat "./inputballs" \
 	| ${SCRIPTDIR}/tools/sihsolvexpand ${PARAMS_FOR_BOUNDING_SPHERES} \
 	  --chain-of-interest "ligand" \
 	  --max-layers "$MAX_PADDING" \
-	  --calc-detailed-volumes \
+	  --calc-detailed-volumes "true" \
+	  --calc-detailed-contacts "$FLAG_FOR_DETAILED_CONTACTS" \
 	2> /dev/null \
+	> "./padded_complex_multifile"
+	
+	cat "./padded_complex_multifile" \
+	| grep -E '^v\s' \
+	| sed 's/^v\s//' \
 	> "./padded_complex"
 	
 	{
-		echo "category padding_layer root_id x y z r volume"
+		echo "category padding_layer root_id x y z r volume receptor_area cap_area"
 		
 		cat "./padded_complex" \
-		| awk '{if($1=="ligand"){print "layer" $6 " " $7 " " $2 " " $3 " " $4 " " $9 " " $8}}' \
+		| awk '{if($1=="ligand"){print "layer" $6 " " $7 " " $2 " " $3 " " $4 " " $9 " " $8 " " $10 " " $11}}' \
 		| sed 's/^layer0/ligand 0/' \
 		| sed 's/^layer/padding /'
 		
 		cat "./padded_complex" \
-		| awk '{if($1=="cap"){print "cap " $6 " " $7 " " $2 " " $3 " " $4 " " $9 " 0"}}'
+		| awk '{if($1=="cap"){print "cap " $6 " " $7 " " $2 " " $3 " " $4 " " $9 " 0 0 0"}}'
 	} \
 	| sed 's/\s\+/\t/g' \
 	> "./padding_table.tsv"
@@ -471,15 +490,39 @@ then
 		exit 1
 	fi
 	
+	if [ -n "$OUTPUT_PADDING_EDGES_FILE" ]
+	then
+		{
+			echo "id_a id_b area"
+			cat "./padded_complex_multifile" \
+			| grep -E '^e\s' \
+			| sed 's/^e\s//'
+		} \
+		| sed 's/\s\+/\t/g' \
+		> "${TMPLDIR}/padding_edges.tsv"
+		
+		if [ ! -s "padding_edges.tsv" ]
+		then
+			echo >&2 "Error: failed to generate a padding edges file"
+			exit 1
+		fi
+	fi
+	
+	cd - &> /dev/null
+	
 	if [ -n "$OUTPUT_PADDING_FILE" ]
 	then
-		cd - &> /dev/null
-		
 		mkdir -p "$(dirname ${OUTPUT_PADDING_FILE})"
 		cp "${TMPLDIR}/padding_table.tsv" "$OUTPUT_PADDING_FILE"
-		
-		cd "$TMPLDIR"
 	fi
+	
+	if [ -n "$OUTPUT_PADDING_EDGES_FILE" ]
+	then
+		mkdir -p "$(dirname ${OUTPUT_PADDING_EDGES_FILE})"
+		cp "${TMPLDIR}/padding_edges.tsv" "$OUTPUT_PADDING_EDGES_FILE"
+	fi
+	
+	cd "$TMPLDIR"
 	
 	if [ "$ONLY_PADDING_TABLE" == "true" ]
 	then
@@ -540,6 +583,8 @@ else
 	  --chain-of-interest "ligand" \
 	  --max-layers "$MAX_PADDING" \
 	2> /dev/null \
+	| grep -E '^v\s' \
+	| sed 's/^v\s//' \
 	> "./padded_complex"
 fi
 

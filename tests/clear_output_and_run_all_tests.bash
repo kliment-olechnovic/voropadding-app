@@ -58,6 +58,7 @@ done
   --input-ligand "./input/receptor_ligand/5zyg_ligand.sdf" \
   --max-padding 3 \
   --output-padding-file "./output/receptor_ligand_padding_table_5zyg_max_padding_3_only.tsv" \
+  --output-padding-edges-file "./output/receptor_ligand_padding_table_5zyg_max_padding_3_edges_only.tsv" \
   --only-padding-table
 
 

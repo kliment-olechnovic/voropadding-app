@@ -13,11 +13,12 @@ Options:
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-edges-file   string     output file path for the padding graph edges, default is ''
     --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
-    --only-padding-table                     flag to only output a table of the annotated padding points
+    --only-padding-table                     flag to only output a table of the annotated padding points (and edges file, if specified)
     --help | -h                              flag to display help message and exit
 
 Standard output:

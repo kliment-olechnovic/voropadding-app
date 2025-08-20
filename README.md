@@ -61,11 +61,12 @@ Options:
     --output-table-file           string     output table file path, default is '_stdout' to print to stdout
     --output-graphics-file        string     output file path for the PyMol drawing script, default is ''
     --output-padding-file         string     output file path for a table of the annotated padding points table, default is ''
+    --output-padding-edges-file   string     output file path for the padding graph edges, default is ''
     --output-padding-draw-file    string     output file path for the padding drawing script for PyMol, default is ''
     --graphics-mode               string     graphics output mode, may be 'basic' or 'detailed', default is 'basic'
     --print-mode                  string     printing to stdout mode, can be 'h' or 'v', default is 'h'
     --processors                  number     maximum number of processors to run in parallel, default is 1
-    --only-padding-table                     flag to only output a table of the annotated padding points
+    --only-padding-table                     flag to only output a table of the annotated padding points (and edges file, if specified)
     --help | -h                              flag to display help message and exit
 
 Standard output:
@@ -260,6 +261,8 @@ The generated table describes real and virtual balls with values in the followin
 * `root_id` is the number of the topologically closest real ligand atom - the minimal number is 1
 * `x`, `y`, `z`, `r` are the center coordinates and the radius of the ball
 * `volume` is the volume of the Voronoi cell of the ball - such volumes are non-overlapping, and, therefore, can be summed
+* `receptor_area` is the total contact area between the ball and the receptor balls
+* `cap_area` is the total contact area between the ball and the capping balls
 
 ## Example producing a detailed padding table with visualizations
 
@@ -285,6 +288,34 @@ The generated visualization scripts can be used as follows:
 ```bash
 pymol "./tests/input/receptor_ligand/5zyg_receptor.pdb" "./vis_5zyg.py" "./draw_padding_5zyg.py"
 ```
+## Example producing a detailed padding table with with the padding graph edges
+
+Running
+
+```bash
+./voropadding \
+  --input-receptor "./tests/input/receptor_ligand/5zyg_receptor.pdb" \
+  --input-ligand "./tests/input/receptor_ligand/5zyg_ligand.sdf" \
+  --max-padding 3 \
+  --print-mode v \
+  --output-padding-file "./padding_5zyg.tsv" \
+  --output-padding-edges-file "./padding_5zyg_edges.tsv"
+```
+
+will generate both a padding details table `padding_5zyg.tsv`,
+and an adjacency table file `padding_5zyg_edges.ts`.
+
+The generated table adjacency table has the following three columns:
+
+* `id_a` is the first ball index, equals the position of the ball row in the main padding table
+* `id_b` is the second ball index, equals the position of the ball row in the main padding table
+* `area` is the the area of the Voronoi face between the balls
+
+Important notes:
+
+* the indices are not 0-based - the minimal ball index value is 1
+* the edges do not repeat in the table
+
 
 ## Performance-focused example for producing a detailed padding table without any other output
 
@@ -302,6 +333,8 @@ Running
 will only generate a padding details table `padding_5zyg.tsv`.
 
 The usage of the `--only-padding-table` flag can significantly decrease the overall execution time.
+
+If the `--output-padding-edges-file` option is used, the padding graph edges file will also be generated.
 
 ### More performance tips
 

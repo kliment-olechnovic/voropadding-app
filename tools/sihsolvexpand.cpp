@@ -42,6 +42,7 @@ Options:
     --pdb-or-mmcif-join-models                                  flag to join multiple models into an assembly when reading input in PDB or mmCIF format
     --output-for-voronota-gl                                    flag to output balls in .pa format for Voronota-GL
     --calc-detailed-volumes                                     flag to calculate and output per-ball volumes
+    --calc-detailed-contacts                                    flag to calculate and output ball-ball contact areas
     --help | -h                                                 flag to print help (for basic options) to stderr and exit
 
 Standard input stream:
@@ -80,6 +81,7 @@ public:
 	bool pdb_or_mmcif_as_assembly;
 	bool output_for_voronota_gl;
 	bool calc_detailed_volumes;
+	bool calc_detailed_contacts;
 	bool read_successfuly;
 	std::string chain_of_interest;
 	std::vector<voronotalt::SimpleSphere> bounding_spheres_;
@@ -96,6 +98,7 @@ public:
 		pdb_or_mmcif_as_assembly(false),
 		output_for_voronota_gl(false),
 		calc_detailed_volumes(false),
+		calc_detailed_contacts(false),
 		read_successfuly(false)
 	{
 	}
@@ -191,6 +194,10 @@ public:
 				{
 					calc_detailed_volumes=opt.is_flag_and_true();
 				}
+				else if(opt.name=="calc-detailed-contacts" && opt.is_flag())
+				{
+					calc_detailed_contacts=opt.is_flag_and_true();
+				}
 				else if(opt.name.empty())
 				{
 					error_log_for_options_parsing << "Error: unnamed command line arguments detected.\n";
@@ -225,6 +232,8 @@ struct SphereInfo
 	int direct_parent;
 	int root_parent;
 	double volume;
+	double receptor_area;
+	double cap_area;
 	double uninflated_radius;
 
 	SphereInfo(const int category, const int layer, const int direct_parent, const int root_parent) :
@@ -233,8 +242,26 @@ struct SphereInfo
 			direct_parent(direct_parent),
 			root_parent(root_parent),
 			volume(0.0),
+			receptor_area(0.0),
+			cap_area(0.0),
 			uninflated_radius(0.0)
 	{
+	}
+};
+
+struct ContactInfo
+{
+	int a;
+	int b;
+	double area;
+
+	ContactInfo(const int a, const int b, const double area) : a(std::min(a, b)), b(std::max(a, b)), area(area)
+	{
+	}
+
+	bool operator<(const ContactInfo& v) const
+	{
+		return ((a<v.a) || (a==v.a && b<v.b));
 	}
 };
 
@@ -509,7 +536,9 @@ int main(const int argc, const char** argv)
 		}
 	}
 
-	if(app_params.calc_detailed_volumes)
+	std::vector<ContactInfo> detailed_contacts;
+
+	if(app_params.calc_detailed_volumes || app_params.calc_detailed_contacts)
 	{
 		voronotalt::RadicalTessellation::Result result;
 
@@ -529,6 +558,47 @@ int main(const int argc, const char** argv)
 		{
 			all_input_sphere_traits[i].volume=result.cells_summaries[i].sas_inside_volume;
 		}
+
+		for(std::size_t i=0;i<result.contacts_summaries.size();i++)
+		{
+			const voronotalt::RadicalTessellation::ContactDescriptorSummary& cds=result.contacts_summaries[i];
+			if(cds.id_a<all_input_sphere_traits.size() && cds.id_b<all_input_sphere_traits.size())
+			{
+				if(app_params.calc_detailed_contacts && cds.id_a>=number_of_first_spheres && cds.id_b>=number_of_first_spheres)
+				{
+					detailed_contacts.push_back(ContactInfo(cds.id_a-number_of_first_spheres, cds.id_b-number_of_first_spheres, cds.area));
+				}
+				SphereInfo& sta=all_input_sphere_traits[cds.id_a];
+				SphereInfo& stb=all_input_sphere_traits[cds.id_b];
+				if(sta.category==1 || sta.category==2)
+				{
+					if(stb.category==0)
+					{
+						sta.receptor_area+=cds.area;
+					}
+					else if(stb.category>2)
+					{
+						sta.cap_area+=cds.area;
+					}
+				}
+				if(stb.category==1 || stb.category==2)
+				{
+					if(sta.category==0)
+					{
+						stb.receptor_area+=cds.area;
+					}
+					else if(sta.category>2)
+					{
+						stb.cap_area+=cds.area;
+					}
+				}
+			}
+		}
+
+		if(!detailed_contacts.empty())
+		{
+			std::sort(detailed_contacts.begin(), detailed_contacts.end());
+		}
 	}
 
 	for(std::size_t i=0;i<all_input_spheres.size();i++)
@@ -544,7 +614,16 @@ int main(const int argc, const char** argv)
 		}
 		else
 		{
-			std::cout << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << st.layer << "\t" << (st.root_parent-number_of_first_spheres+1) << "\t" << st.volume << "\t" << st.uninflated_radius << "\n";
+			std::cout << "v\t" << chain_name << "\t" << s.p.x << "\t" << s.p.y << "\t" << s.p.z << "\t" << s.r << "\t" << st.layer << "\t" << (st.root_parent-number_of_first_spheres+1) << "\t" << st.volume << "\t" << st.uninflated_radius << "\t" << st.receptor_area << "\t" << st.cap_area << "\n";
+		}
+	}
+
+	if(!app_params.output_for_voronota_gl)
+	{
+		for(std::size_t i=0;i<detailed_contacts.size();i++)
+		{
+			const ContactInfo cinfo=detailed_contacts[i];
+			std::cout << "e\t" << (cinfo.a+1) << "\t" << (cinfo.b+1) << "\t" << cinfo.area << "\n";
 		}
 	}
 
