@@ -303,9 +303,9 @@ Running
 ```
 
 will generate both a padding details table `padding_5zyg.tsv`,
-and an adjacency table file `padding_5zyg_edges.ts`.
+and an adjacency table file `padding_5zyg_edges.tsv`.
 
-The generated table adjacency table has the following three columns:
+The generated adjacency table has the following three columns:
 
 * `id_a` is the first ball index, equals the position of the ball row in the main padding table
 * `id_b` is the second ball index, equals the position of the ball row in the main padding table
